@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env*.local
+
+# OS
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Build / cache
+.expo/
+dist/
+web-build/
+.metro-health-check*
+
+# Optional: uncomment if you don't want to track backend uploads
+# backend/uploads/
