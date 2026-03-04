@@ -92,9 +92,26 @@ export default function AuthScreen({ onLogin }) {
     }
   };
 
-  const handleForgot = () => {
-    Alert.alert('Reset link sent', 'If the email exists, a reset link was sent. Check your email.');
-    setMode('login');
+  const handleForgot = async () => {
+    const email = form.email?.trim();
+    if (!email || !email.includes('@')) {
+      setErrors({ forgot: 'Please enter a valid email address.' });
+      return;
+    }
+    setErrors({});
+    setLoading(true);
+    try {
+      await api('/api/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      });
+      Alert.alert('Check your email', 'If an account exists for that email, we sent a password reset link. The link expires in 1 hour.');
+      setMode('login');
+    } catch (err) {
+      setErrors({ forgot: err.message || 'Something went wrong. Try again.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -278,6 +295,7 @@ export default function AuthScreen({ onLogin }) {
             <>
               <Text style={styles.title}>Reset password</Text>
               <Text style={styles.subtitle}>We'll send a reset link to your email</Text>
+              {errors.forgot ? <View style={styles.errorBox}><Text style={styles.errorText}>{errors.forgot}</Text></View> : null}
               <Text style={styles.label}>Email address</Text>
               <TextInput
                 style={styles.input}
@@ -285,9 +303,15 @@ export default function AuthScreen({ onLogin }) {
                 placeholderTextColor={colors.text3}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                value={form.email}
+                onChangeText={(v) => set('email', v)}
               />
-              <TouchableOpacity style={styles.btnPrimary} onPress={handleForgot}>
-                <Text style={styles.btnPrimaryText}>Send Reset Link</Text>
+              <TouchableOpacity
+                style={[styles.btnPrimary, loading && styles.btnDisabled]}
+                onPress={handleForgot}
+                disabled={loading}
+              >
+                <Text style={styles.btnPrimaryText}>{loading ? 'Sending…' : 'Send Reset Link'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.switchLink} onPress={() => setMode('login')}>
                 <Text style={styles.switchLinkText}>← Back to sign in</Text>

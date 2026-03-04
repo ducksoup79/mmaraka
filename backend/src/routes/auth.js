@@ -1,8 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { pool } = require('../db/pool');
 const { verifyToken, JWT_SECRET } = require('../middleware/auth');
+const { sendPasswordResetEmail, sendVerificationEmail } = require('../lib/email');
 
 const REFRESH_SECRET = process.env.REFRESH_TOKEN_SECRET || JWT_SECRET;
 const router = express.Router();
@@ -18,14 +20,20 @@ router.post('/register', async (req, res) => {
     );
     const client_role_id = roleRes.rows[0]?.client_role_id || 1;
     const hash = await bcrypt.hash(password, 10);
+    const verifyToken = crypto.randomBytes(32).toString('hex');
     const whatsappVal = whatsapp === undefined || whatsapp === null || String(whatsapp).trim() === '' ? null : String(whatsapp).trim();
     const countryCodeVal = country_code === undefined || country_code === null || String(country_code).trim() === '' ? null : String(country_code).trim();
     const r = await pool.query(
-      `INSERT INTO client (username, email, password_hash, client_role_id, whatsapp, country_code, location_id, first_name, last_name)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO client (username, email, password_hash, client_role_id, whatsapp, country_code, location_id, first_name, last_name, verify_token, verify_token_expiry)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW() + INTERVAL '24 hours')
        RETURNING client_id, username, email, join_date`,
-      [username, email, hash, client_role_id, whatsappVal, countryCodeVal, location_id || null, first_name || null, last_name || null]
+      [username, email, hash, client_role_id, whatsappVal, countryCodeVal, location_id || null, first_name || null, last_name || null, verifyToken]
     );
+    try {
+      await sendVerificationEmail(email.trim(), verifyToken);
+    } catch (err) {
+      console.error('[register] verification email failed:', err.message);
+    }
     res.status(201).json(r.rows[0]);
   } catch (e) {
     if (e.code === '23505') return res.status(409).json({ error: 'Username or email already exists' });
@@ -80,15 +88,20 @@ router.get('/verify-email', async (req, res) => {
 
 router.post('/forgot-password', async (req, res) => {
   try {
-    const { email } = req.body;
+    const email = (req.body.email || '').trim().toLowerCase();
     if (!email) return res.status(400).json({ error: 'email required' });
-    const token = require('crypto').randomBytes(32).toString('hex');
+    const token = crypto.randomBytes(32).toString('hex');
     const r = await pool.query(
-      'UPDATE client SET reset_token = $1, reset_token_expiry = NOW() + INTERVAL \'1 hour\' WHERE email = $2 RETURNING client_id',
+      'UPDATE client SET reset_token = $1, reset_token_expiry = NOW() + INTERVAL \'1 hour\' WHERE LOWER(email) = $2 RETURNING client_id, email',
       [token, email]
     );
     if (r.rows.length > 0) {
-      // TODO: send email with reset link using nodemailer if configured
+      try {
+        await sendPasswordResetEmail(r.rows[0].email, token);
+      } catch (err) {
+        console.error('[forgot-password] send email failed:', err.message);
+        // still return success so we don't leak whether the email exists
+      }
     }
     res.json({ message: 'If the email exists, a reset link was sent' });
   } catch (e) {
