@@ -1,3 +1,6 @@
+/**
+ * Product detail: GET /api/products/:listingId. Buy (PATCH buy) or Message seller. Image from API_BASE + path.
+ */
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { api, API_BASE } from '../api';

@@ -1,5 +1,9 @@
+/**
+ * Products list: GET /api/products, pull-to-refresh, search + category filter. Tap opens ProductDetail.
+ * Uses API_BASE for product images. AdvertBar at top.
+ */
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Image, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Image, RefreshControl, ActivityIndicator, Modal } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api, API_BASE } from '../api';
 import { colors } from '../theme';
@@ -53,6 +57,9 @@ function ProductCard({ item, onPress }) {
 
 export default function ProductsScreen({ navigation }) {
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [categoryId, setCategoryId] = useState(null);
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -62,8 +69,12 @@ export default function ProductsScreen({ navigation }) {
   const load = useCallback(async () => {
     try {
       setError(null);
-      const rows = await api('/api/products');
+      const [rows, catRows] = await Promise.all([
+        api('/api/products'),
+        api('/api/misc/categories').catch(() => []),
+      ]);
       setProducts(Array.isArray(rows) ? rows : []);
+      setCategories(Array.isArray(catRows) ? catRows : []);
     } catch (e) {
       setError(e.message || 'Failed to load');
     } finally {
@@ -85,9 +96,13 @@ export default function ProductsScreen({ navigation }) {
 
   const filtered = products.filter(
     (p) =>
-      !search.trim() ||
-      (p.product_name || '').toLowerCase().includes(search.toLowerCase())
+      (categoryId == null || p.category_id === categoryId) &&
+      (!search.trim() || (p.product_name || '').toLowerCase().includes(search.toLowerCase()))
   );
+
+  const categoryLabel = categoryId == null
+    ? 'All categories'
+    : (categories.find((c) => c.category_id === categoryId)?.category_name || 'All categories');
 
   if (loading) {
     return (
@@ -121,6 +136,49 @@ export default function ProductsScreen({ navigation }) {
         value={search}
         onChangeText={setSearch}
       />
+      <TouchableOpacity
+        style={styles.categoryRow}
+        onPress={() => setCategoryModalVisible(true)}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.categoryLabel}>Category</Text>
+        <Text style={styles.categoryValue}>{categoryLabel}</Text>
+        <Text style={styles.categoryChevron}>▼</Text>
+      </TouchableOpacity>
+      <Modal
+        visible={categoryModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCategoryModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setCategoryModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Filter by category</Text>
+            <TouchableOpacity
+              style={[styles.modalOption, categoryId === null && styles.modalOptionActive]}
+              onPress={() => { setCategoryId(null); setCategoryModalVisible(false); }}
+            >
+              <Text style={styles.modalOptionText}>All categories</Text>
+            </TouchableOpacity>
+            {categories.map((c) => (
+              <TouchableOpacity
+                key={c.category_id}
+                style={[styles.modalOption, categoryId === c.category_id && styles.modalOptionActive]}
+                onPress={() => { setCategoryId(c.category_id); setCategoryModalVisible(false); }}
+              >
+                <Text style={styles.modalOptionText}>{c.category_name}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.modalCancel} onPress={() => setCategoryModalVisible(false)}>
+              <Text style={styles.modalCancelText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
       <AdvertBar navigation={navigation} />
       {error ? (
         <View style={styles.errorBox}>
@@ -133,7 +191,7 @@ export default function ProductsScreen({ navigation }) {
         <View style={styles.empty}>
           <Text style={styles.emptyIcon}>📦</Text>
           <Text style={styles.emptyTitle}>No listings found</Text>
-          <Text style={styles.emptySub}>Try adjusting your search</Text>
+          <Text style={styles.emptySub}>Try a different category or search</Text>
         </View>
       ) : (
         <FlatList
@@ -176,7 +234,7 @@ const styles = StyleSheet.create({
   addBtnText: { color: '#fff', fontSize: 22, fontWeight: '700', marginTop: -1 },
   search: {
     marginHorizontal: 16,
-    marginBottom: 12,
+    marginBottom: 8,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -186,6 +244,39 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
   },
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  categoryLabel: { fontSize: 13, color: colors.text2, marginRight: 8 },
+  categoryValue: { flex: 1, fontSize: 15, color: colors.text, fontWeight: '500' },
+  categoryChevron: { fontSize: 10, color: colors.text3 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    maxHeight: '70%',
+  },
+  modalTitle: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 12 },
+  modalOption: { paddingVertical: 12, paddingHorizontal: 8, borderRadius: 8 },
+  modalOptionActive: { backgroundColor: colors.accentLt },
+  modalOptionText: { fontSize: 15, color: colors.text },
+  modalCancel: { marginTop: 12, paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border },
+  modalCancelText: { fontSize: 15, color: colors.text2, fontWeight: '500' },
   listContent: { padding: 8, paddingBottom: 24 },
   row: { paddingHorizontal: 8, marginBottom: 12, gap: 12 },
   card: { flex: 1, backgroundColor: colors.surface, borderRadius: 12, overflow: 'hidden', maxWidth: '48%' },

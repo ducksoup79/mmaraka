@@ -115,6 +115,105 @@ router.get('/config', async (req, res) => {
   }
 });
 
+/**
+ * Get current user's active PayPal subscription (if any). Used by frontend/mobile to show Unsubscribe button.
+ */
+router.get('/my-subscription', verifyToken, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT ps.paypal_subscription_id, ps.client_role_id, cr.client_role
+       FROM paypal_subscription ps
+       JOIN client_role cr ON cr.client_role_id = ps.client_role_id
+       WHERE ps.client_id = $1 AND ps.status IN ('ACTIVE', 'APPROVAL_PENDING')`,
+      [req.user.client_id]
+    );
+    if (r.rows.length === 0) {
+      return res.json({ active: false });
+    }
+    const row = r.rows[0];
+    res.json({
+      active: true,
+      paypal_subscription_id: row.paypal_subscription_id,
+      plan: row.client_role,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
+ * Cancel current user's PayPal subscription: call PayPal cancel API, then downgrade to Basic and update DB.
+ */
+router.post('/cancel-subscription', verifyToken, async (req, res) => {
+  try {
+    const subRow = await pool.query(
+      `SELECT paypal_subscription_id, client_role_id FROM paypal_subscription
+       WHERE client_id = $1 AND status IN ('ACTIVE', 'APPROVAL_PENDING')`,
+      [req.user.client_id]
+    );
+    if (subRow.rows.length === 0) {
+      return res.status(400).json({ error: 'You do not have an active PayPal subscription to cancel.' });
+    }
+
+    const { paypal_subscription_id } = subRow.rows[0];
+    const config = await getPaymentConfig();
+    if (!config.paypal_client_id || !config.paypal_client_secret) {
+      return res.status(503).json({ error: 'PayPal is not configured.' });
+    }
+
+    const base = config.paypal_sandbox ? PAYPAL_SANDBOX : PAYPAL_LIVE;
+    const accessToken = await getPayPalAccessToken(
+      config.paypal_client_id,
+      config.paypal_client_secret,
+      config.paypal_sandbox
+    );
+
+    const cancelRes = await fetch(`${base}/v1/billing/subscriptions/${paypal_subscription_id}/cancel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ reason: 'Customer requested cancellation via Mmaraka' }),
+    });
+    if (!cancelRes.ok) {
+      const errData = await cancelRes.json().catch(() => ({}));
+      const msg = errData.message || errData.details?.[0]?.description || 'PayPal cancel failed';
+      return res.status(400).json({ error: msg });
+    }
+
+    const basicRole = await pool.query(
+      "SELECT client_role_id FROM client_role WHERE client_role = 'Basic' LIMIT 1"
+    );
+    const basicRoleId = basicRole.rows[0]?.client_role_id;
+    if (!basicRoleId) {
+      return res.status(500).json({ error: 'Basic plan not found' });
+    }
+
+    await removeClientServicesFromAdvertList(req.user.client_id).catch((err) =>
+      console.error('[cancel-subscription] removeClientServicesFromAdvertList:', err.message)
+    );
+    await pool.query(
+      'UPDATE client SET client_role_id = $1, updated_at = NOW() WHERE client_id = $2',
+      [basicRoleId, req.user.client_id]
+    );
+    await updateClientListingPositions(req.user.client_id, basicRoleId).catch((err) =>
+      console.error('[cancel-subscription] updateClientListingPositions:', err.message)
+    );
+    await pool.query(
+      'UPDATE paypal_subscription SET status = $1 WHERE paypal_subscription_id = $2',
+      ['CANCELLED', paypal_subscription_id]
+    );
+
+    res.json({ success: true, message: 'Subscription cancelled. You have been moved to the Basic plan.' });
+  } catch (e) {
+    const msg = e.paypalConfig
+      ? 'PayPal rejected our credentials. Contact support if this persists.'
+      : e.message;
+    res.status(e.paypalConfig ? 502 : 500).json({ error: msg });
+  }
+});
+
 // Create PayPal order for plan upgrade
 router.post('/create-order', verifyToken, async (req, res) => {
   try {

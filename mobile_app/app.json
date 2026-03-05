@@ -18,7 +18,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "00000000-0000-0000-0000-000000000000"
+        "projectId": "72950e33-254b-440d-bc84-e7082f5a7da6"
       }
     },
     "splash": {
@@ -41,6 +41,7 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "owner": "puddlejumper"
   }
 }

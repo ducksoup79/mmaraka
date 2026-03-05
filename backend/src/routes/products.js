@@ -1,3 +1,7 @@
+/**
+ * Product listing routes under /api/products.
+ * Listings join product + product_category + client (seller/buyer). Protected routes use verifyToken.
+ */
 const express = require('express');
 const { pool } = require('../db/pool');
 const { verifyToken } = require('../middleware/auth');
@@ -5,6 +9,7 @@ const { sendPushToMany } = require('../lib/push');
 
 const router = express.Router();
 
+/** List all available product listings (status=avail), ordered by position and date. */
 router.get('/', async (req, res) => {
   try {
     const r = await pool.query(`
@@ -47,6 +52,7 @@ router.get('/mine', verifyToken, async (req, res) => {
   }
 });
 
+/** Single listing by id (listing_id). */
 router.get('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -72,6 +78,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+/** Create product + listing; product_position from user's role listing_priority. Optionally send push to other users. */
 router.post('/', verifyToken, async (req, res) => {
   try {
     const { product_name, product_description, product_image_path, product_price, category_id } = req.body;
@@ -120,6 +127,7 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
+/** Mark listing as sold, set buyer_id, and create a message to the seller. */
 router.patch('/:id/buy', verifyToken, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -153,6 +161,7 @@ router.patch('/:id/buy', verifyToken, async (req, res) => {
   }
 });
 
+/** Update product fields and optionally listing status (avail/sold/dormant). Only listing owner. */
 router.patch('/:id', verifyToken, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -204,6 +213,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
   }
 });
 
+/** Delete listing and its product. Only listing owner. */
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -223,6 +233,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
   }
 });
 
+/** Reinstate a dormant listing (avail again, extend expiry). Max 2 reinstates per listing. */
 router.patch('/:id/reinstate', verifyToken, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);

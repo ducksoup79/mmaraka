@@ -1,10 +1,14 @@
+/**
+ * Expo push token registration under /api/push-token.
+ * POST to register/update token for current user; DELETE to remove (e.g. on logout).
+ */
 const express = require('express');
 const { pool } = require('../db/pool');
 const { verifyToken } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Register or update the current user's Expo push token (call after login)
+/** Register or update current user's Expo push token (call after login). */
 router.post('/', verifyToken, async (req, res) => {
   try {
     const token = req.body?.token;
@@ -24,7 +28,7 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-// Remove push token (e.g. on logout)
+/** Remove push token for current user (e.g. on logout). */
 router.delete('/', verifyToken, async (req, res) => {
   try {
     await pool.query('DELETE FROM push_tokens WHERE client_id = $1', [req.user.client_id]);

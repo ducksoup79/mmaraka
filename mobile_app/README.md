@@ -41,6 +41,65 @@ React Native app for Mmaraka, using the same backend API as the web frontend. Bu
 
    Then press `i` for iOS simulator, `a` for Android emulator, or scan the QR code with the Expo Go app on a physical device.
 
+## Building for distribution (EAS Build)
+
+To build installable Android APK/AAB or iOS IPA (not just Expo Go):
+
+1. **Install EAS CLI** (one-time)
+
+   ```bash
+   npm install -g eas-cli
+   ```
+
+2. **Log in to Expo**
+
+   ```bash
+   eas login
+   ```
+
+3. **Configure the project** (one-time, if not already linked)
+
+   From the `mobile_app` folder:
+
+   ```bash
+   eas build:configure
+   ```
+
+   Update `app.json` → `extra.eas.projectId` with the project ID from your Expo account (or run `eas init` to create/link the project).
+
+4. **Build**
+
+   - **Android APK** (for direct install / testing; no Play Store):
+
+     ```bash
+     eas build --platform android --profile preview
+     ```
+
+     APK will be available in the Expo dashboard; download and share or install.
+
+   - **Android App Bundle** (for Play Store):
+
+     ```bash
+     eas build --platform android --profile production
+     ```
+
+   - **iOS** (simulator only with default profiles; for device/TestFlight use a production profile and proper Apple setup):
+
+     ```bash
+     eas build --platform ios --profile preview
+     ```
+
+   The API URL for builds is set in `eas.json` per profile (`EXPO_PUBLIC_API_URL`, e.g. `https://api.mmaraka.com`). Change it there if you use a different backend.
+
+5. **Submit to stores** (optional)
+
+   ```bash
+   eas submit --platform android --profile production
+   eas submit --platform ios --profile production
+   ```
+
+   Configure credentials and store metadata in the Expo dashboard or via `eas credentials` / `eas submit` prompts.
+
 ## Features (ported from web)
 
 - **Auth:** Login, sign up, forgot password, terms & conditions

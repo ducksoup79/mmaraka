@@ -1,3 +1,6 @@
+/**
+ * Add or edit service: image picker + uploadImage, POST or PATCH /api/services (one service per user).
+ */
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';

@@ -1,3 +1,7 @@
+/**
+ * Web app entry: route by pathname to ResetPasswordPage, VerifyEmailPage, or main App.
+ * No React Router; reset/verify are standalone pages; everything else is the SPA in marketplace-preview.jsx.
+ */
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './marketplace-preview.jsx';

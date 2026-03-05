@@ -1,4 +1,4 @@
-// Match frontend design tokens
+// Design tokens aligned with web frontend (colors, surfaces, accent)
 export const colors = {
   bg: '#F7F6F2',
   surface: '#FFFFFF',

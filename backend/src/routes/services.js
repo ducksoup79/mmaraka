@@ -1,9 +1,14 @@
+/**
+ * Service routes under /api/services.
+ * One service per client; service_listing controls visibility. Protected routes use verifyToken.
+ */
 const express = require('express');
 const { pool } = require('../db/pool');
 const { verifyToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+/** List all active services (service_status=true), with client info. */
 router.get('/', async (req, res) => {
   try {
     const r = await pool.query(`
@@ -41,6 +46,7 @@ router.get('/mine', verifyToken, async (req, res) => {
   }
 });
 
+/** Single service by id; only if listed and active. */
 router.get('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -59,6 +65,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+/** Create service + service_listing. One service per client. */
 router.post('/', verifyToken, async (req, res) => {
   try {
     const { service_name, service_description, service_logo_path } = req.body;
@@ -92,6 +99,7 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
+/** Update service (owner only). */
 router.patch('/:id', verifyToken, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -119,6 +127,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
   }
 });
 
+/** Delete service (owner only). */
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);

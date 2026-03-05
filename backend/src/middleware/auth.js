@@ -1,8 +1,16 @@
+/**
+ * Auth middleware: verify JWT and optionally require admin.
+ * Used by routes that need a logged-in user (req.user).
+ */
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db/pool');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
+/**
+ * Expects Authorization: Bearer <token>. Verifies JWT, loads client from DB,
+ * sets req.user. Returns 401 if token missing/invalid or user inactive.
+ */
 async function verifyToken(req, res, next) {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith('Bearer ')) {
@@ -27,6 +35,7 @@ async function verifyToken(req, res, next) {
   }
 }
 
+/** Use after verifyToken. Returns 403 if req.user is not an admin. */
 function requireAdmin(req, res, next) {
   if (!req.user || !req.user.is_admin) {
     return res.status(403).json({ error: 'Admin only' });

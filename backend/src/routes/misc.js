@@ -1,3 +1,7 @@
+/**
+ * Misc public and optional protected routes under /api/misc.
+ * Locations, roles, categories, adverts (banner), report-error.
+ */
 const express = require('express');
 const { pool } = require('../db/pool');
 const { verifyToken } = require('../middleware/auth');
@@ -15,6 +19,7 @@ router.get('/locations', async (req, res) => {
   }
 });
 
+/** Client roles (Basic, Silver, Diamond, Admin) with optional plan_description/plan_features. */
 router.get('/roles', async (req, res) => {
   try {
     let r;
@@ -51,6 +56,7 @@ router.get('/roles', async (req, res) => {
   }
 });
 
+/** Product categories for listing form dropdown. */
 router.get('/categories', async (req, res) => {
   try {
     const r = await pool.query(
@@ -62,7 +68,7 @@ router.get('/categories', async (req, res) => {
   }
 });
 
-// Active banner adverts (services in advert_list) for the rotating ad bar
+/** Active banner adverts (Diamond services) for rotating ad bar. */
 router.get('/adverts', async (req, res) => {
   try {
     const r = await pool.query(
@@ -85,6 +91,7 @@ router.get('/adverts', async (req, res) => {
   }
 });
 
+/** Submit error report; notifies admins via messages. */
 router.post('/report-error', verifyToken, async (req, res) => {
   try {
     const { subject, description, screenshot_path } = req.body;

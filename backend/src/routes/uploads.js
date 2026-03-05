@@ -1,3 +1,8 @@
+/**
+ * Image upload route: POST /api/uploads/image, multipart "file".
+ * Saves to backend/uploads with unique filename; returns { path: "/uploads/..." }.
+ * Requires verifyToken. 5MB max, image/* only.
+ */
 const express = require('express');
 const multer = require('multer');
 const path = require('path');

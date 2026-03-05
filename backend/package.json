@@ -8,6 +8,7 @@
     "dev": "nodemon src/index.js",
     "run-local": "node scripts/ensure-env.js && npm run dev",
     "setup": "node src/db/setup.js",
+    "setup-email": "node scripts/setup-email.js",
     "migrate": "node migrations/run-messages-table.js && node migrations/run-push-tokens-table.js && node migrations/run-payment-tables.js && node migrations/run-error-report-screenshot.js && node migrations/run-plan-description-features.js && node migrations/run-add-client-name.js && node migrations/run-sync-diamond-adverts.js"
   },
   "dependencies": {

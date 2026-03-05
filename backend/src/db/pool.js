@@ -1,3 +1,7 @@
+/**
+ * PostgreSQL connection pool for the API.
+ * All DB_* vars come from .env (see .env.example).
+ */
 require('dotenv').config();
 const { Pool } = require('pg');
 

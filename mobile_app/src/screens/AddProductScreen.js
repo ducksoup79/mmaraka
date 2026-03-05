@@ -1,3 +1,6 @@
+/**
+ * Add or edit product: image picker + uploadImage, categories from /api/misc/categories, POST or PATCH /api/products.
+ */
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';

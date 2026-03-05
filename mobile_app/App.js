@@ -1,3 +1,8 @@
+/**
+ * Mmaraka mobile app entry: AuthProvider wraps app; if not logged in show AuthScreen,
+ * else Stack (Main tabs + ProductDetail, Add/Edit Product, ServiceDetail, Add/Edit Service, Chat, Subscription).
+ * Push notification tap opens Chat or ProductDetail. Theme from src/theme.js.
+ */
 import React, { useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -25,6 +30,7 @@ import { colors } from './src/theme';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+/** Tab bar icon helper. */
 const tabIcon = (icon) => ({ focused }) => (
   <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.6 }}>{icon}</Text>
 );
@@ -52,10 +58,12 @@ function MainTabs() {
   );
 }
 
+/** Main content: loading state, or AuthScreen if no user, or navigator with tabs + stack screens. */
 function AppContent() {
   const { user, loading, login } = useAuth();
   const navigationRef = useRef(null);
 
+  // When user is logged in, handle push notification tap → open Chat or ProductDetail
   useEffect(() => {
     if (!user) return;
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {

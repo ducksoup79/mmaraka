@@ -1,3 +1,8 @@
+/**
+ * Message routes under /api/messages. All require verifyToken.
+ * Conversations, thread with a peer, send, mark read, delete conversation.
+ * Push notifications sent to recipient on new message.
+ */
 const express = require('express');
 const { pool } = require('../db/pool');
 const { verifyToken } = require('../middleware/auth');
@@ -6,7 +11,7 @@ const { sendPushNotification } = require('../lib/push');
 const router = express.Router();
 router.use(verifyToken);
 
-// Total unread count for current user (for nav badge)
+/** Total unread count for current user (for nav badge). */
 router.get('/unread-count', async (req, res) => {
   try {
     const r = await pool.query(
@@ -19,7 +24,7 @@ router.get('/unread-count', async (req, res) => {
   }
 });
 
-// Get another user's public info for starting a conversation
+/** Get another user's public info (for conversation header). */
 router.get('/peer/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -37,7 +42,7 @@ router.get('/peer/:id', async (req, res) => {
   }
 });
 
-// List conversations: other user, last message, unread count
+/** List conversations: other user, last message, unread count. */
 router.get('/conversations', async (req, res) => {
   try {
     const me = req.user.client_id;
@@ -84,7 +89,7 @@ router.get('/conversations', async (req, res) => {
   }
 });
 
-// Get messages between me and :with (query param)
+/** Get message thread with ?with=<client_id>; marks messages from that user as read. */
 router.get('/', async (req, res) => {
   try {
     const me = req.user.client_id;
@@ -125,7 +130,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Send a message
+/** Send a message; optionally push-notify recipient. */
 router.post('/', async (req, res) => {
   try {
     const senderId = req.user.client_id;
@@ -169,7 +174,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Mark messages from a user as read (optional, GET thread already does this)
+/** Mark messages from user :with as read. */
 router.patch('/read', async (req, res) => {
   try {
     const me = req.user.client_id;
@@ -185,7 +190,7 @@ router.patch('/read', async (req, res) => {
   }
 });
 
-// Delete entire conversation with another user (all messages between me and :withId)
+/** Delete all messages between me and :withId. */
 router.delete('/conversations/:withId', async (req, res) => {
   try {
     const me = req.user.client_id;

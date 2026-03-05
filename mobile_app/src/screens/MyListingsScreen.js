@@ -1,3 +1,6 @@
+/**
+ * My listings: GET /api/products/mine and /api/services/mine. Add/edit product or service, delete, reinstate, contact buyer.
+ */
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert, RefreshControl, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';

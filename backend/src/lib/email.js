@@ -1,3 +1,7 @@
+/**
+ * Email sending for password reset and email verification.
+ * Uses nodemailer + SMTP from env. No-op if SMTP_HOST or base URL not set.
+ */
 const nodemailer = require('nodemailer');
 
 const BASE_URL = process.env.PASSWORD_RESET_BASE_URL || process.env.BASE_URL || '';
@@ -5,6 +9,7 @@ const MAIL_FROM = process.env.MAIL_FROM || process.env.SMTP_USER || 'noreply@mma
 
 let transporter = null;
 
+/** Builds and caches nodemailer transport from SMTP_* env. Returns null if SMTP_HOST unset. */
 function getTransporter() {
   if (transporter) return transporter;
   const host = process.env.SMTP_HOST;

@@ -1,3 +1,7 @@
+/**
+ * Auth routes: register, login, email verification, forgot/reset password, me, change-password, PATCH me.
+ * All under /api/auth. Protected routes use verifyToken (req.user).
+ */
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -9,6 +13,7 @@ const { sendPasswordResetEmail, sendVerificationEmail } = require('../lib/email'
 const REFRESH_SECRET = process.env.REFRESH_TOKEN_SECRET || JWT_SECRET;
 const router = express.Router();
 
+/** Create new client (Basic role), hash password, set verify_token and send verification email. */
 router.post('/register', async (req, res) => {
   try {
     const { username, email, password, whatsapp, location_id, first_name, last_name, country_code } = req.body;
@@ -41,6 +46,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
+/** Login by email or username + password; return access_token, refresh_token, user. Update last_login and store refresh_token. */
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -70,6 +76,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
+/** Verify email: token in query; set client_verified=true and clear verify_token. */
 router.get('/verify-email', async (req, res) => {
   try {
     const { token } = req.query;
@@ -86,6 +93,7 @@ router.get('/verify-email', async (req, res) => {
   }
 });
 
+/** Forgot password: set reset_token and expiry for matching email, send reset link. Same response whether email exists (no enumeration). */
 router.post('/forgot-password', async (req, res) => {
   try {
     const email = (req.body.email || '').trim().toLowerCase();
@@ -109,6 +117,7 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
+/** Reset password: validate token and expiry, update password_hash, clear reset_token. */
 router.post('/reset-password', async (req, res) => {
   try {
     const { token, new_password } = req.body;
@@ -129,10 +138,12 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+/** Current user (requires valid JWT). */
 router.get('/me', verifyToken, (req, res) => {
   res.json(req.user);
 });
 
+/** Change password: verify current_password then set new_password. */
 router.post('/change-password', verifyToken, async (req, res) => {
   try {
     const { current_password, new_password } = req.body;
@@ -160,6 +171,7 @@ router.post('/change-password', verifyToken, async (req, res) => {
   }
 });
 
+/** Update profile (username, email, whatsapp, country_code, location_id). Returns updated user. */
 router.patch('/me', verifyToken, async (req, res) => {
   try {
     const { username, email, whatsapp, country_code, location_id } = req.body;

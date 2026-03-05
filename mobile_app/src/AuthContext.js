@@ -1,3 +1,7 @@
+/**
+ * Auth context: user state, login, logout, updateUser. Token in AsyncStorage (marketplace_token)
+ * and in api.js via setAuthToken. On load, restore token and GET /api/auth/me; on login register push.
+ */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, setAuthToken, getAuthToken } from './api';
@@ -11,6 +15,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  /** Restore token from AsyncStorage; if present, set auth and fetch /api/auth/me, then register push. */
   const loadStoredToken = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem(TOKEN_KEY);
@@ -60,6 +65,7 @@ export function AuthProvider({ children }) {
     registerForPushNotificationsAsync().catch(() => {});
   }, []);
 
+  /** Clear token, user, AsyncStorage; unregister push. */
   const logout = useCallback(async () => {
     setAuthToken(null);
     setUser(null);

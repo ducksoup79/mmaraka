@@ -1,3 +1,7 @@
+/**
+ * Login / sign up / forgot-password screen. Calls /api/auth/login, register, forgot-password.
+ * On success invokes onLogin(userData, token). Loads locations for signup.
+ */
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Platform, Alert } from 'react-native';
 import { api } from '../api';

@@ -1,8 +1,16 @@
+/**
+ * Mmaraka web SPA: single-file app with inline CSS. No React Router; screen state (products, services,
+ * messages, etc.) is held in useState. Auth: token in window.__marketplace_token and localStorage.
+ * API_BASE from VITE_API_URL (empty in dev = Vite proxy). Contains: API helpers, design tokens (css),
+ * AuthScreen, ProductsPage, AddProductPage, ServicesPage, AddServicePage, MyListingsPage, MessagesPage,
+ * SettingsPage, ReportPage, TermsPage, AdminPage, and main App with header/sidebar and renderPage switch.
+ */
 import { useState, useEffect, useRef, useCallback, createContext, useContext } from "react";
 
-// ─── API config (Vite proxy in dev forwards /api to backend; set VITE_API_URL for production) ───
+// API base: empty in dev (Vite proxy forwards /api); set VITE_API_URL for production build
 const API_BASE = import.meta.env?.VITE_API_URL ?? "";
 
+/** JSON API client; adds Bearer token from window.__marketplace_token when present. */
 async function api(path, options = {}) {
   const token = typeof window !== "undefined" && window.__marketplace_token;
   const headers = {
@@ -16,6 +24,7 @@ async function api(path, options = {}) {
   return data;
 }
 
+/** Upload image via POST /api/uploads/image; returns path for product/service image. */
 async function uploadImage(file) {
   const token = typeof window !== "undefined" && window.__marketplace_token;
   const fd = new FormData();
@@ -46,7 +55,7 @@ function formatRelative(dateStr) {
   return d.toLocaleDateString();
 }
 
-// ─── Design Tokens ────────────────────────────────────────────────────────────
+// ─── Design tokens & global CSS (layout, header, sidebar, forms, cards, etc.) ───
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:wght@600;700&display=swap');
 
@@ -975,14 +984,31 @@ function AddProductPage({ setScreen, editListingId, setEditListingId, returnTo =
   const [imagePath, setImagePath] = useState(null);
   const [errors, setErrors] = useState({});
   const [categories, setCategories] = useState([]);
+  const [categoriesError, setCategoriesError] = useState(null);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(!!editListingId);
   const fileInputRef = useRef(null);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
-  useEffect(() => {
-    api("/api/misc/categories").then(setCategories).catch(() => {});
+  const loadCategories = useCallback(() => {
+    setCategoriesError(null);
+    setCategoriesLoading(true);
+    api("/api/misc/categories")
+      .then((data) => {
+        const list = Array.isArray(data) ? data : (data?.categories ?? data?.data ?? []);
+        setCategories(list);
+      })
+      .catch((err) => {
+        setCategoriesError(err?.message || "Could not load categories");
+        setCategories([]);
+      })
+      .finally(() => setCategoriesLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
 
   useEffect(() => {
     if (!editListingId) return;
@@ -1114,8 +1140,23 @@ function AddProductPage({ setScreen, editListingId, setEditListingId, returnTo =
             </div>
             <div className="form-group">
               <label className="form-label">Category<span>*</span></label>
-              <select className="form-select" value={form.category_id} onChange={e=>{ const v = e.target.value; set("category_id", v); set("category", v); }}>
-                <option value="">Select category…</option>
+              {categoriesError ? (
+                <div className="form-error" style={{ marginBottom: 8 }}>
+                  {categoriesError}
+                  <button type="button" className="btn btn-outline" style={{ marginLeft: 8 }} onClick={loadCategories}>
+                    Retry
+                  </button>
+                </div>
+              ) : null}
+              <select
+                className="form-select"
+                value={form.category_id}
+                onChange={e=>{ const v = e.target.value; set("category_id", v); set("category", v); }}
+                disabled={categoriesLoading}
+              >
+                <option value="">
+                  {categoriesLoading ? "Loading…" : categories.length === 0 ? "No categories available" : "Select category…"}
+                </option>
                 {categories.map(c=> <option key={c.category_id} value={c.category_id}>{c.category_name}</option>)}
               </select>
               {errors.category && <span className="form-error">{errors.category}</span>}
@@ -1569,7 +1610,7 @@ function AddServicePage({ setScreen, editServiceId, setEditServiceId, returnTo =
 }
 
 function SettingsPage({ user, setScreen, onProfileUpdate }) {
-  const { toast } = useNotifications();
+  const { toast, confirm } = useNotifications();
   const [tab, setTab] = useState("profile");
   const [profile, setProfile] = useState({ username: user?.name ?? "", email: user?.email ?? "", whatsapp: "", country_code: "+267", location_id: "" });
   const [profileLoading, setProfileLoading] = useState(true);
@@ -1582,6 +1623,8 @@ function SettingsPage({ user, setScreen, onProfileUpdate }) {
   const [paypalError, setPaypalError] = useState(null);
   const [upgradeSuccess, setUpgradeSuccess] = useState(null);
   const paypalContainerRef = useRef(null);
+  const [mySubscription, setMySubscription] = useState(null);
+  const [unsubscribeLoading, setUnsubscribeLoading] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -1614,6 +1657,9 @@ function SettingsPage({ user, setScreen, onProfileUpdate }) {
     api("/api/payment/config")
       .then(setPaymentConfig)
       .catch(() => setPaymentConfig({ paypal_client_id: "", paypal_sandbox: true, currency_code: "BWP", plan_ids: {} }));
+    api("/api/payment/my-subscription")
+      .then(setMySubscription)
+      .catch(() => setMySubscription({ active: false }));
   }, [tab]);
 
   useEffect(() => {
@@ -1814,6 +1860,43 @@ function SettingsPage({ user, setScreen, onProfileUpdate }) {
             );
             })}
           </div>
+          {mySubscription?.active && (
+            <div className="settings-section" style={{ maxWidth: 560, marginTop: 24 }}>
+              <div className="settings-title">Active PayPal subscription</div>
+              <p className="text-muted" style={{ fontSize: 14, marginBottom: 16 }}>
+                You are on the {mySubscription.plan} plan via PayPal. Cancel to stop future charges and move to Basic.
+              </p>
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ borderColor: "var(--danger)", color: "var(--danger)" }}
+                disabled={unsubscribeLoading}
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: "Unsubscribe",
+                    message: "Cancel your PayPal subscription? You will be moved to the Basic plan and will not be charged again.",
+                    confirmLabel: "Unsubscribe",
+                    cancelLabel: "Keep subscription",
+                    danger: true,
+                  });
+                  if (!ok) return;
+                  setUnsubscribeLoading(true);
+                  try {
+                    const res = await api("/api/payment/cancel-subscription", { method: "POST" });
+                    toast(res.message || "Subscription cancelled.");
+                    setMySubscription({ active: false });
+                    if (onProfileUpdate) onProfileUpdate({});
+                  } catch (e) {
+                    toast(e.message || "Failed to cancel subscription");
+                  } finally {
+                    setUnsubscribeLoading(false);
+                  }
+                }}
+              >
+                {unsubscribeLoading ? "Cancelling…" : "Unsubscribe"}
+              </button>
+            </div>
+          )}
           {cart.length > 0 && (
             <div className="settings-section" style={{maxWidth:560,marginTop:24}}>
               <div className="settings-title">Checkout</div>
@@ -3341,6 +3424,7 @@ const NAV = [
   { id:"terms",       label:"Terms & Conditions", icon:"📜" },
 ];
 
+/** Root App: restores token from localStorage, holds screen state and user; renders AuthScreen or main layout with sidebar and current page. */
 export default function App() {
   const [user, setUser] = useState(null);
   const [screen, setScreen] = useState("products");

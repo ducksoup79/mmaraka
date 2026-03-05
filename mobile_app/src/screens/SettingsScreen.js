@@ -1,13 +1,53 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+/**
+ * Settings: show profile summary, link to Subscription, Unsubscribe (if active PayPal sub), sign out (onLogout from AuthContext).
+ */
+import React, { useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../AuthContext';
+import { api } from '../api';
 import { colors } from '../theme';
 import Screen from '../components/Screen';
 
 export default function SettingsScreen({ onLogout }) {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigation = useNavigation();
+  const [mySubscription, setMySubscription] = useState(null);
+  const [unsubscribeLoading, setUnsubscribeLoading] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      api('/api/payment/my-subscription')
+        .then(setMySubscription)
+        .catch(() => setMySubscription({ active: false }));
+    }, [])
+  );
+
+  const handleUnsubscribe = () => {
+    Alert.alert(
+      'Unsubscribe',
+      'Cancel your PayPal subscription? You will be moved to the Basic plan and will not be charged again.',
+      [
+        { text: 'Keep subscription', style: 'cancel' },
+        {
+          text: 'Unsubscribe',
+          style: 'destructive',
+          onPress: async () => {
+            setUnsubscribeLoading(true);
+            try {
+              await api('/api/payment/cancel-subscription', { method: 'POST' });
+              setMySubscription({ active: false });
+              updateUser({});
+            } catch (e) {
+              Alert.alert('Error', e.message || 'Failed to cancel subscription');
+            } finally {
+              setUnsubscribeLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <Screen style={styles.container}>
@@ -37,6 +77,23 @@ export default function SettingsScreen({ onLogout }) {
           <Text style={styles.menuRowText}>Subscription / Upgrade plan</Text>
           <Text style={styles.menuRowChevron}>›</Text>
         </TouchableOpacity>
+        {mySubscription?.active && (
+          <TouchableOpacity
+            style={[styles.menuRow, styles.unsubscribeRow]}
+            onPress={handleUnsubscribe}
+            disabled={unsubscribeLoading}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.unsubscribeRowText}>
+              {unsubscribeLoading ? 'Cancelling…' : 'Unsubscribe from PayPal'}
+            </Text>
+            {unsubscribeLoading ? (
+              <ActivityIndicator size="small" color={colors.danger} />
+            ) : (
+              <Text style={styles.menuRowChevron}>›</Text>
+            )}
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
           <Text style={styles.logoutText}>Sign out</Text>
         </TouchableOpacity>
@@ -87,6 +144,8 @@ const styles = StyleSheet.create({
   },
   menuRowText: { fontSize: 16, color: colors.text, fontWeight: '500' },
   menuRowChevron: { fontSize: 20, color: colors.text3 },
+  unsubscribeRow: { borderColor: colors.dangerLt },
+  unsubscribeRowText: { fontSize: 16, color: colors.danger, fontWeight: '500' },
   logoutBtn: { paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 8 },
   logoutText: { color: colors.text2, fontSize: 16 },
 });

@@ -1,5 +1,8 @@
+/**
+ * Services list: GET /api/services, pull-to-refresh, search by name/description. Tap opens ServiceDetail.
+ */
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Image } from 'react-native';
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Image } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api, API_BASE } from '../api';
 import { colors } from '../theme';
@@ -34,6 +37,7 @@ export default function ServicesScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -59,6 +63,14 @@ export default function ServicesScreen({ navigation }) {
     setRefreshing(true);
     load();
   };
+
+  const filtered = services.filter((s) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    const name = (s.service_name || '').toLowerCase();
+    const desc = (s.service_description || '').toLowerCase();
+    return name.includes(q) || desc.includes(q);
+  });
 
   if (loading) {
     return (
@@ -93,6 +105,13 @@ export default function ServicesScreen({ navigation }) {
           <Text style={styles.addBtnText}>＋</Text>
         </TouchableOpacity>
       </View>
+      <TextInput
+        style={styles.search}
+        placeholder="Search services…"
+        placeholderTextColor={colors.text3}
+        value={search}
+        onChangeText={setSearch}
+      />
       <AdvertBar navigation={navigation} />
       {services.length === 0 ? (
         <View style={styles.empty}>
@@ -100,9 +119,15 @@ export default function ServicesScreen({ navigation }) {
           <Text style={styles.emptyTitle}>No services yet</Text>
           <Text style={styles.emptySub}>Tap ＋ to add your service</Text>
         </View>
+      ) : filtered.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyIcon}>🔍</Text>
+          <Text style={styles.emptyTitle}>No matching services</Text>
+          <Text style={styles.emptySub}>Try a different search</Text>
+        </View>
       ) : (
         <FlatList
-          data={services}
+          data={filtered}
           keyExtractor={(item) => String(item.service_id)}
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
@@ -125,6 +150,18 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, color: colors.text2, marginTop: 2 },
   addBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   addBtnText: { color: '#fff', fontSize: 22, fontWeight: '700', marginTop: -1 },
+  search: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: colors.text,
+  },
   listContent: { padding: 16, paddingBottom: 24 },
   card: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 12, overflow: 'hidden' },
   logoWrap: { width: '100%', height: 120, borderRadius: 8, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },

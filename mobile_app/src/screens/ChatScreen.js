@@ -1,3 +1,6 @@
+/**
+ * Chat thread with one user: GET /api/messages?with=id, POST to send. otherId/otherUsername from route params.
+ */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

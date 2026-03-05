@@ -1,3 +1,6 @@
+/**
+ * Rotating banner of adverts: GET /api/misc/adverts. Tap opens ServiceDetail. Used on Products tab.
+ */
 import React, { useState, useCallback } from 'react';
 import {
   View,

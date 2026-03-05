@@ -1,7 +1,6 @@
 /**
- * API base URL for the backend.
- * - Expo: set EXPO_PUBLIC_API_URL in .env (e.g. http://localhost:3000 or your deployed URL).
- * - For physical device testing use your machine's LAN IP (e.g. http://192.168.1.5:3000).
+ * API client and upload for the mobile app. API_BASE from EXPO_PUBLIC_API_URL (.env or EAS build).
+ * Token stored in memory (setAuthToken/getAuthToken) and used in Authorization header.
  */
 export const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -15,6 +14,7 @@ export function getAuthToken() {
   return authToken;
 }
 
+/** JSON API request; adds Bearer token when set. Throws on non-OK response. */
 export async function api(path, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
@@ -27,6 +27,7 @@ export async function api(path, options = {}) {
   return data;
 }
 
+/** Upload image: accepts { uri, type, name } or similar; POST to /api/uploads/image; returns path. */
 export async function uploadImage(input) {
   const uri = typeof input === 'string' ? input : input?.uri;
   if (!uri) throw new Error('Image uri required');

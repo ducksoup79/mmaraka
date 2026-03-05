@@ -1,3 +1,6 @@
+/**
+ * Conversations list: GET /api/messages/conversations. Tap opens ChatScreen with otherId.
+ */
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';

@@ -1,3 +1,7 @@
+/**
+ * Standalone page for password reset: user arrives with ?token= from email link.
+ * Form submits new_password to POST /api/auth/reset-password; shows success or error.
+ */
 import { useState, useEffect } from "react";
 
 const API_BASE = import.meta.env?.VITE_API_URL ?? "";
@@ -27,11 +31,13 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Read token from URL query (set by email link)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setToken(params.get("token") || "");
   }, []);
 
+  /** Submit new password to API; token comes from email link. */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");

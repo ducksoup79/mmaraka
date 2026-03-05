@@ -1,9 +1,14 @@
+/**
+ * Mmaraka API server – Express app entry point.
+ * Mounts all API routes, serves uploads, runs background cleanup jobs.
+ */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { pool } = require('./db/pool');
 const path = require('path');
 
+// Route modules (each exports an Express router)
 const authRoutes = require('./routes/auth');
 const productsRoutes = require('./routes/products');
 const servicesRoutes = require('./routes/services');
@@ -18,14 +23,16 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
-// Webhook must receive raw body for signature verification; register before express.json()
+// Payment webhook needs raw body for signature verification; must be registered before express.json()
 app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), (req, res, next) => {
   paymentRoutes.handleWebhook(req, res).catch(next);
 });
 app.use(express.json());
 
+// Static files: product/service images stored under backend/uploads
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// API route mounting
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/services', servicesRoutes);
@@ -38,6 +45,10 @@ app.use('/api/push-token', pushTokenRoutes);
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 
+/**
+ * Remove sold listings older than 3 days and delete orphaned product rows
+ * (products that no longer have any listing). Runs on boot and every hour.
+ */
 async function cleanupSoldProducts() {
   try {
     const delListings = await pool.query(
@@ -59,7 +70,9 @@ async function cleanupSoldProducts() {
   }
 }
 
-// Conversations are automatically deleted after 7 days from message creation
+/**
+ * Delete messages older than 7 days to limit storage. Runs on boot and every hour.
+ */
 async function cleanupOldMessages() {
   try {
     const r = await pool.query(
@@ -77,9 +90,8 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`  Network: http://<this-machine-ip>:${PORT}`);
 });
 
-// Cleanup sold items after 3 days (runs on boot + every hour)
+// Run cleanup on startup, then every hour
 cleanupSoldProducts();
 setInterval(cleanupSoldProducts, 60 * 60 * 1000);
-// Conversations auto-delete after 7 days (runs on boot + every hour)
 cleanupOldMessages();
 setInterval(cleanupOldMessages, 60 * 60 * 1000);

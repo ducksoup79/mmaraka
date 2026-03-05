@@ -1,3 +1,7 @@
+/**
+ * Standalone page for email verification: user arrives with ?token= from signup email.
+ * GET /api/auth/verify-email?token= sets client_verified; shows loading then success or error.
+ */
 import { useState, useEffect } from "react";
 
 const API_BASE = import.meta.env?.VITE_API_URL ?? "";
@@ -19,6 +23,7 @@ export default function VerifyEmailPage() {
   const [status, setStatus] = useState("loading"); // 'loading' | 'success' | 'error'
   const [message, setMessage] = useState("");
 
+  // On mount: read token from URL and call verify-email API
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token") || "";

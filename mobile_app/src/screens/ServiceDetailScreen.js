@@ -1,3 +1,6 @@
+/**
+ * Service detail: GET /api/services/:serviceId. Message owner. Logo from API_BASE + path.
+ */
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { api, API_BASE } from '../api';
