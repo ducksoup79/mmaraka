@@ -37,7 +37,7 @@ router.post('/register', async (req, res) => {
     try {
       await sendVerificationEmail(email.trim(), verifyToken);
     } catch (err) {
-      console.error('[register] verification email failed:', err.message);
+      console.error('[register] verification email failed:', err.message, err.code || '', err.response ? String(err.response).slice(0, 200) : '');
     }
     res.status(201).json(r.rows[0]);
   } catch (e) {
@@ -107,7 +107,7 @@ router.post('/forgot-password', async (req, res) => {
       try {
         await sendPasswordResetEmail(r.rows[0].email, token);
       } catch (err) {
-        console.error('[forgot-password] send email failed:', err.message);
+        console.error('[forgot-password] send email failed:', err.message, err.code || '', err.response ? String(err.response).slice(0, 200) : '');
         // still return success so we don't leak whether the email exists
       }
     }

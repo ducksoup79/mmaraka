@@ -3,6 +3,7 @@ const { pool } = require('../db/pool');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { getPaymentConfig, setPaymentConfig } = require('../lib/payment-config');
 const { applySubscriptionRulesForClient } = require('../lib/subscription-rules');
+const { verifyTransport, getTransporter } = require('../lib/email');
 
 const router = express.Router();
 router.use(verifyToken, requireAdmin);
@@ -20,6 +21,39 @@ function getPkCol(table) {
   };
   return map[table] || `${table.replace(/s$/, '')}_id`;
 }
+
+/** Test SMTP connection; returns { ok: true } or { ok: false, error: string }. Use this to see email config errors. */
+router.get('/test-email', async (req, res) => {
+  try {
+    const result = await verifyTransport();
+    if (result.ok) return res.json({ ok: true, message: 'SMTP connection successful' });
+    return res.status(503).json({ ok: false, error: result.error });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/** Send a test email to the given address (admin only). Body: { to: "email@example.com" }. Returns the send error if it fails. */
+router.post('/send-test-email', async (req, res) => {
+  try {
+    const to = (req.body?.to || '').trim();
+    if (!to) return res.status(400).json({ error: 'Body must include "to" email address' });
+    const trans = getTransporter();
+    if (!trans) return res.status(503).json({ error: 'SMTP not configured (SMTP_HOST not set)' });
+    const MAIL_FROM = process.env.MAIL_FROM || process.env.SMTP_USER || 'noreply@mmaraka.com';
+    await trans.sendMail({
+      from: MAIL_FROM,
+      to,
+      subject: 'Mmaraka – Test email',
+      text: 'This is a test email from your Mmaraka server. If you received this, SMTP is working.',
+      html: '<p>This is a test email from your Mmaraka server. If you received this, SMTP is working.</p>',
+    });
+    return res.json({ ok: true, message: 'Test email sent' });
+  } catch (e) {
+    const msg = e.response || e.message || String(e);
+    return res.status(503).json({ ok: false, error: msg });
+  }
+});
 
 router.get('/dashboard', async (req, res) => {
   try {

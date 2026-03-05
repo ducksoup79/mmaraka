@@ -202,6 +202,13 @@ async function main() {
 }
 
 main().catch((err) => {
+  if (err.code === 'EACCES') {
+    console.error('\n' + err.message);
+    console.error('\nOn the server, either:');
+    console.error('  1. Run as the user that owns .env (e.g. sudo -u www-data node scripts/setup-email.js)');
+    console.error('  2. Or fix ownership: sudo chown $(whoami) backend/.env  then run the script again');
+    process.exit(1);
+  }
   console.error(err);
   process.exit(1);
 });

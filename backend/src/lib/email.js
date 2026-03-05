@@ -14,10 +14,14 @@ function getTransporter() {
   if (transporter) return transporter;
   const host = process.env.SMTP_HOST;
   if (!host) return null;
+  const port = parseInt(process.env.SMTP_PORT || '587', 10);
+  const secure = process.env.SMTP_SECURE === 'true';
   transporter = nodemailer.createTransport({
     host,
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: process.env.SMTP_SECURE === 'true',
+    port,
+    secure,
+    // Gmail on 587 uses STARTTLS; requireTLS helps avoid connection issues
+    ...(port === 587 && !secure && { requireTLS: true }),
     auth:
       process.env.SMTP_USER && process.env.SMTP_PASS
         ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
@@ -65,3 +69,20 @@ async function sendVerificationEmail(toEmail, token) {
 }
 
 module.exports = { sendPasswordResetEmail, sendVerificationEmail, getTransporter };
+
+/**
+ * Verify SMTP connection (for admin diagnostics). Returns { ok: true } or { ok: false, error: string }.
+ */
+async function verifyTransport() {
+  const trans = getTransporter();
+  if (!trans) return { ok: false, error: 'SMTP not configured (SMTP_HOST not set)' };
+  try {
+    await trans.verify();
+    return { ok: true };
+  } catch (e) {
+    const msg = e.response || e.message || String(e);
+    return { ok: false, error: msg };
+  }
+}
+
+module.exports.verifyTransport = verifyTransport;
