@@ -16,44 +16,24 @@ Steps to run the Mmaraka API on a VPS (e.g. DigitalOcean, Linode, AWS EC2) so th
   - `DB_*`, `JWT_SECRET`, `REFRESH_TOKEN_SECRET`
   - `ADMIN_PASSWORD` if you use the seeded admin user
 
-## 2. Email – Mailgun or SMTP
+## 2. Email – Mailgun
 
-The backend can send mail via **Mailgun** (recommended; no outbound port 587) or **SMTP** (e.g. Gmail).
+The backend sends mail via **Mailgun** only (HTTP API; no outbound port 587).
 
-### Option A: Mailgun (recommended)
-
-- No SMTP server or outbound port 587 needed; uses Mailgun’s HTTP API.
 - In `.env` set:
   - `MAILGUN_API_KEY` – from [Mailgun dashboard](https://app.mailgun.com/) → Sending → API Keys.
   - `MAILGUN_DOMAIN` – your sending domain (e.g. `sandboxxxxx.mailgun.org` for sandbox).
   - `MAIL_FROM` – sender address for that domain (e.g. `Mmaraka <postmaster@sandboxxxxx.mailgun.org>`).
   - `PASSWORD_RESET_BASE_URL` – base URL for reset/verify links (e.g. `https://mmaraka.com`).
   - `MAILGUN_EU=true` only if your Mailgun account/domain is in the EU region.
-- Sandbox domains: you must add recipient addresses in Mailgun → Sending → Authorized recipients for testing.
+- Sandbox domains: add recipient addresses in Mailgun → Sending → Authorized recipients for testing.
 
-### Option B: SMTP (e.g. Gmail)
-
-The backend does **not** run an SMTP server. It connects **outbound** to Gmail (or another provider) to send mail.
-
-- You do **not** need Postfix, Sendmail, or any mail server on the VPS.
-- In `.env` set (Gmail example):
-  - `SMTP_HOST=smtp.gmail.com`
-  - `SMTP_PORT=587`
-  - `SMTP_SECURE=false`
-  - `SMTP_USER=yourname@gmail.com`
-  - `SMTP_PASS=<16-char Gmail App Password>`  
-    (Google Account → Security → 2-Step Verification → App passwords.)
-  - `MAIL_FROM=yourname@gmail.com` (or same as `SMTP_USER`)
-  - `PASSWORD_RESET_BASE_URL=https://your-domain.com` (or your app’s reset URL)
-
-Restart the backend after changing `.env`. Use **GET /api/admin/test-email** (with admin auth) to verify SMTP from the VPS.
+Restart the backend after changing `.env`. Use **GET /api/admin/test-email** (with admin auth) to verify Mailgun.
 
 ## 3. Firewall
 
-- **Inbound:** Open only what your app needs (e.g. 80, 443 for HTTP/HTTPS). Do **not** open port 587 inbound.
-- **Outbound:** The app initiates connections to `smtp.gmail.com:587`. Most VPS firewalls allow outbound traffic by default, so you usually do **not** need to allow port 587 explicitly.  
-  If your provider blocks outbound SMTP, add an **egress** rule allowing TCP 587 (and 465 if you use it) to the internet.  
-  **Note:** Some hosts (e.g. DigitalOcean) block outbound SMTP until the account is in good standing (e.g. first payment completed). If email never connects, check your provider’s policy and payment status.
+- **Inbound:** Open only what your app needs (e.g. 80, 443 for HTTP/HTTPS).
+- **Outbound:** Mailgun uses HTTPS (port 443); no special firewall rules needed.
 
 **Example (UFW on Ubuntu):**
 
@@ -63,7 +43,6 @@ sudo ufw allow 22
 sudo ufw allow 80
 sudo ufw allow 443
 sudo ufw enable
-# Outbound 587 is allowed by default; no rule needed for Gmail.
 ```
 
 ## 4. Run the API
@@ -106,7 +85,7 @@ Email send failures are logged as:
 
 - Logs appear in the terminal. If you run in the background (e.g. `node src/index.js &` or via `nohup`), check wherever you redirected output (e.g. `nohup node src/index.js >> app.log 2>&1` → `app.log`).
 
-### See the exact SMTP error without reading logs
+### Check Mailgun config without reading logs
 
 Call the admin endpoint with a **valid access token** (from logging in as an admin user), not the JWT secret.
 
@@ -128,7 +107,7 @@ From the response, copy the `access_token` value (long string, not the refresh_t
 curl -s -H "Authorization: Bearer YOUR_ACCESS_TOKEN_HERE" https://api.mmaraka.com/api/admin/test-email
 ```
 
-Replace `YOUR_ACCESS_TOKEN_HERE` with the token from step 1. The response will show `ok: true` or the exact SMTP error.
+Replace `YOUR_ACCESS_TOKEN_HERE` with the token from step 1. The response will show `ok: true` or the config error.
 
 ## Password reset not working?
 
@@ -149,7 +128,7 @@ Use this checklist:
    Go to [Mailgun](https://app.mailgun.com/) → **Sending** → **Logs** (or **Events**). Filter by recipient or time. You’ll see whether the message was accepted, delivered, or failed.
 
 3. **Admin test**  
-   Call `GET /api/admin/test-email` with an admin token to confirm Mailgun (or SMTP) is configured. Use `POST /api/admin/send-test-email` with body `{"to":"that@email.com"}` to send a test to the same address and confirm delivery.
+   Call `GET /api/admin/test-email` with an admin token to confirm Mailgun is configured. Use `POST /api/admin/send-test-email` with body `{"to":"that@email.com"}` to send a test to the same address and confirm delivery.
 
 4. **If email still not received**
    - Backend `.env`: `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `MAIL_FROM` set; `MAILGUN_EU=true` if your Mailgun region is EU.
@@ -169,8 +148,5 @@ Use this checklist:
 
 | Item | Action |
 |------|--------|
-| SMTP on VPS | Not needed; app is SMTP client only |
-| Open port 587 inbound | No |
-| Outbound 587 | Usually already allowed; allow egress 587 only if your host blocks it |
-| `.env` Gmail | App Password in `SMTP_PASS`, correct `SMTP_USER` / `MAIL_FROM` |
+| Email provider | Mailgun only (set MAILGUN_API_KEY, MAILGUN_DOMAIN, MAIL_FROM) |
 | Test email | `GET /api/admin/test-email` with admin JWT |

@@ -3389,9 +3389,19 @@ function AuthScreen({ onLogin }) {
           <div className="login-form">
             <div className="form-group">
               <label className="form-label">Email address</label>
-              <input className="form-input" type="email" placeholder="you@example.com" />
+              <input className="form-input" type="email" placeholder="you@example.com"
+                value={form.email} onChange={e=>set("email", e.target.value)} />
             </div>
-            <button className="btn btn-primary w-full" onClick={()=>{ toast("✅ Reset link sent! Check your email.", "success"); setMode("login"); }}>Send Reset Link</button>
+            <button className="btn btn-primary w-full" onClick={async ()=>{
+              if (!form.email) { toast("Please enter your email address.", "error"); return; }
+              try {
+                await api("/api/auth/forgot-password", { method:"POST", body: JSON.stringify({ email: form.email }) });
+                toast("✅ Reset link sent! Check your email.", "success");
+                setMode("login");
+              } catch(e) {
+                toast(e.message || "Failed to send reset link.", "error");
+              }
+            }}>Send Reset Link</button>
           </div>
           <div className="login-switch"><a onClick={()=>setMode("login")}>← Back to sign in</a></div>
         </>}

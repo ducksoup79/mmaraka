@@ -58,14 +58,14 @@ Location: mobile_production/backend/
   - POST /register: body username, email, password (optional: whatsapp,
     location_id, first_name, last_name, country_code). Hashes password
     (bcrypt), inserts client with client_role Basic, sets verify_token and
-    verify_token_expiry, calls sendVerificationEmail (no-op if SMTP not set).
+    verify_token_expiry, calls sendVerificationEmail (no-op if Mailgun not set).
   - POST /login: body email (or username), password. Looks up client, checks
     password, updates last_login, returns { access_token, user } (JWT sub =
     client_id).
   - GET /verify-email?token=: validates verify_token, sets client_verified=true,
     clears token/expiry.
   - POST /forgot-password: body email. Generates reset_token, sets
-    reset_token_expiry (1 hour), calls sendPasswordResetEmail (no-op if SMTP
+    reset_token_expiry (1 hour), calls sendPasswordResetEmail (no-op if Mailgun
     not set). Always returns same success message (no email enumeration).
   - POST /reset-password: body token, new_password. Validates reset_token and
     expiry, updates password_hash, clears reset token.
@@ -79,12 +79,11 @@ Location: mobile_production/backend/
 1.4 Email
 ---------
 - src/lib/email.js
-  - getTransporter(): builds nodemailer transport from SMTP_HOST, SMTP_PORT,
-    SMTP_SECURE, SMTP_USER, SMTP_PASS (cached). Returns null if SMTP_HOST
-    not set.
+  - getMailgunClient(): builds Mailgun client from MAILGUN_API_KEY, MAILGUN_DOMAIN (cached). Returns null if not set.
+  - sendEmail(to, subject, text, html): sends via Mailgun. Returns 'mailgun' or null.
   - sendPasswordResetEmail(to, token): builds reset URL from
     PASSWORD_RESET_BASE_URL (or BASE_URL), sends HTML/text email with link
-    /reset-password?token=... No-op if base URL or transporter missing.
+    /reset-password?token=... No-op if base URL or Mailgun missing.
   - sendVerificationEmail(to, token): same pattern for /verify-email?token=...
   - MAIL_FROM from env or SMTP_USER or default noreply@mmaraka.com.
 
@@ -313,7 +312,7 @@ Location: mobile_production/mobile_app/
   JWT in AsyncStorage and in memory. Both send Authorization: Bearer <token>
   and rely on backend verifyToken for protected routes.
 
-- Password reset and email verification: backend sends emails (if SMTP
+- Password reset and email verification: backend sends emails (if Mailgun
   configured) with links to the web app (PASSWORD_RESET_BASE_URL). Web app
   has dedicated routes /reset-password and /verify-email that read token
   from query and call the auth API. Mobile does not implement these pages;
@@ -333,7 +332,7 @@ Location: mobile_production/mobile_app/
 
 Backend (.env):
 - PORT, NODE_ENV, BASE_URL, PASSWORD_RESET_BASE_URL
-- MAIL_FROM, SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS
+- MAIL_FROM, MAILGUN_API_KEY, MAILGUN_DOMAIN, MAILGUN_EU
 - DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
 - ADMIN_PASSWORD (for setup), JWT_SECRET, REFRESH_TOKEN_SECRET
 

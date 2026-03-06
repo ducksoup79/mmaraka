@@ -108,7 +108,7 @@ router.post('/forgot-password', async (req, res) => {
       try {
         const provider = await sendPasswordResetEmail(r.rows[0].email, token);
         if (!provider) {
-          console.warn('[forgot-password] email not sent (missing config). Check PASSWORD_RESET_BASE_URL and Mailgun/SMTP env.');
+          console.warn('[forgot-password] email not sent (missing config). Check PASSWORD_RESET_BASE_URL and Mailgun env.');
         } else {
           console.log('[forgot-password] reset email sent via', provider, 'to', r.rows[0].email);
         }

@@ -1,17 +1,14 @@
 /**
  * Email sending for password reset and email verification.
- * Uses Mailgun when MAILGUN_API_KEY + MAILGUN_DOMAIN are set, otherwise SMTP (nodemailer).
- * No-op if neither is configured or PASSWORD_RESET_BASE_URL is missing for reset/verify.
+ * Uses Mailgun only (MAILGUN_API_KEY + MAILGUN_DOMAIN). No-op if not configured or PASSWORD_RESET_BASE_URL missing.
  */
 const FormData = require('form-data');
 const Mailgun = require('mailgun.js');
-const nodemailer = require('nodemailer');
 
 const BASE_URL = process.env.PASSWORD_RESET_BASE_URL || process.env.BASE_URL || '';
-const MAIL_FROM = process.env.MAIL_FROM || process.env.SMTP_USER || 'noreply@mmaraka.com';
+const MAIL_FROM = process.env.MAIL_FROM || 'noreply@mmaraka.com';
 
 let mailgunClient = null;
-let transporter = null;
 
 /** Get Mailgun client (cached). Returns null if MAILGUN_API_KEY or MAILGUN_DOMAIN unset. */
 function getMailgunClient() {
@@ -26,70 +23,37 @@ function getMailgunClient() {
   return mailgunClient;
 }
 
-/** Builds and caches nodemailer transport from SMTP_* env. Returns null if SMTP_HOST unset. */
-function getTransporter() {
-  if (transporter) return transporter;
-  const host = process.env.SMTP_HOST;
-  if (!host) return null;
-  const port = parseInt(process.env.SMTP_PORT || '587', 10);
-  const secure = process.env.SMTP_SECURE === 'true';
-  transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    ...(port === 587 && !secure && { requireTLS: true }),
-    auth:
-      process.env.SMTP_USER && process.env.SMTP_PASS
-        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-        : undefined,
-  });
-  return transporter;
-}
-
 /** True if Mailgun is configured. */
 function isMailgunConfigured() {
   return !!(process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN);
 }
 
-/** True if SMTP is configured. */
-function isSmtpConfigured() {
-  return !!process.env.SMTP_HOST;
-}
-
 /**
- * Send a single email. Uses Mailgun if configured, else SMTP. No-op if neither configured.
+ * Send a single email via Mailgun. No-op if Mailgun not configured.
  * @param {string} to - Recipient email
  * @param {string} subject - Subject
  * @param {string} text - Plain text body
  * @param {string} [html] - Optional HTML body
  * @param {string} [from] - From address (default MAIL_FROM)
+ * @returns {'mailgun'|null} - 'mailgun' if sent, null if not configured
  */
 async function sendEmail(to, subject, text, html, from) {
-  const fromAddr = from || MAIL_FROM;
   const mg = getMailgunClient();
-  if (mg) {
-    const domain = process.env.MAILGUN_DOMAIN;
-    await mg.messages.create(domain, {
-      from: fromAddr,
-      to: [to],
-      subject,
-      text,
-      html: html || text,
-    });
-    return 'mailgun';
-  }
-  const trans = getTransporter();
-  if (trans) {
-    await trans.sendMail({ from: fromAddr, to, subject, text, html: html || text });
-    return 'smtp';
-  }
-  return null;
+  if (!mg) return null;
+  const fromAddr = from || MAIL_FROM;
+  const domain = process.env.MAILGUN_DOMAIN;
+  await mg.messages.create(domain, {
+    from: fromAddr,
+    to: [to],
+    subject,
+    text,
+    html: html || text,
+  });
+  return 'mailgun';
 }
 
 /**
- * Send password reset email. No-op if email not configured or PASSWORD_RESET_BASE_URL not set.
+ * Send password reset email. No-op if Mailgun/base URL not configured.
  */
 async function sendPasswordResetEmail(toEmail, token) {
   if (!BASE_URL.trim()) return null;
@@ -101,7 +65,7 @@ async function sendPasswordResetEmail(toEmail, token) {
 }
 
 /**
- * Send email verification link (for new signups). No-op if email not configured or base URL not set.
+ * Send email verification link (for new signups). No-op if not configured.
  */
 async function sendVerificationEmail(toEmail, token) {
   if (!BASE_URL.trim()) return null;
@@ -114,33 +78,17 @@ async function sendVerificationEmail(toEmail, token) {
 
 /**
  * Verify email config (for admin diagnostics). Returns { ok: true } or { ok: false, error: string }.
- * Mailgun: returns ok if env is set (no network call). SMTP: runs verify() with 15s timeout.
  */
 async function verifyTransport() {
-  if (isMailgunConfigured()) {
-    return { ok: true };
-  }
-  const trans = getTransporter();
-  if (!trans) return { ok: false, error: 'Email not configured (set MAILGUN_API_KEY + MAILGUN_DOMAIN or SMTP_HOST)' };
-  try {
-    await Promise.race([
-      trans.verify(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP connection timeout (15s)')), 15000)),
-    ]);
-    return { ok: true };
-  } catch (e) {
-    const msg = e.response || e.message || String(e);
-    return { ok: false, error: msg };
-  }
+  if (isMailgunConfigured()) return { ok: true };
+  return { ok: false, error: 'Email not configured (set MAILGUN_API_KEY and MAILGUN_DOMAIN)' };
 }
 
 module.exports = {
   sendPasswordResetEmail,
   sendVerificationEmail,
   sendEmail,
-  getTransporter,
   getMailgunClient,
   isMailgunConfigured,
-  isSmtpConfigured,
   verifyTransport,
 };

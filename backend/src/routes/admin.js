@@ -3,7 +3,7 @@ const { pool } = require('../db/pool');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { getPaymentConfig, setPaymentConfig } = require('../lib/payment-config');
 const { applySubscriptionRulesForClient } = require('../lib/subscription-rules');
-const { verifyTransport, sendEmail, isMailgunConfigured, isSmtpConfigured } = require('../lib/email');
+const { verifyTransport, sendEmail, isMailgunConfigured } = require('../lib/email');
 
 const router = express.Router();
 router.use(verifyToken, requireAdmin);
@@ -22,27 +22,24 @@ function getPkCol(table) {
   return map[table] || `${table.replace(/s$/, '')}_id`;
 }
 
-/** Test email config; returns { ok: true } or { ok: false, error: string }. Works for Mailgun or SMTP. */
+/** Test Mailgun config; returns { ok: true } or { ok: false, error: string }. */
 router.get('/test-email', async (req, res) => {
   try {
     const result = await verifyTransport();
-    if (result.ok) {
-      const provider = isMailgunConfigured() ? 'Mailgun' : 'SMTP';
-      return res.json({ ok: true, message: `${provider} configured successfully` });
-    }
+    if (result.ok) return res.json({ ok: true, message: 'Mailgun configured successfully' });
     return res.status(503).json({ ok: false, error: result.error });
   } catch (e) {
     return res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-/** Send a test email to the given address (admin only). Body: { to: "email@example.com" }. Uses Mailgun or SMTP. */
+/** Send a test email to the given address (admin only). Body: { to: "email@example.com" }. */
 router.post('/send-test-email', async (req, res) => {
   try {
     const to = (req.body?.to || '').trim();
     if (!to) return res.status(400).json({ error: 'Body must include "to" email address' });
-    if (!isMailgunConfigured() && !isSmtpConfigured()) {
-      return res.status(503).json({ error: 'Email not configured (set MAILGUN_API_KEY + MAILGUN_DOMAIN or SMTP_HOST)' });
+    if (!isMailgunConfigured()) {
+      return res.status(503).json({ error: 'Email not configured (set MAILGUN_API_KEY and MAILGUN_DOMAIN)' });
     }
     const subject = 'Mmaraka – Test email';
     const text = 'This is a test email from your Mmaraka server. If you received this, email is working.';
