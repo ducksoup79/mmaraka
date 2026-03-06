@@ -98,6 +98,7 @@ router.post('/forgot-password', async (req, res) => {
   try {
     const email = (req.body.email || '').trim().toLowerCase();
     if (!email) return res.status(400).json({ error: 'email required' });
+    console.log('[forgot-password] request for', email);
     const token = crypto.randomBytes(32).toString('hex');
     const r = await pool.query(
       'UPDATE client SET reset_token = $1, reset_token_expiry = NOW() + INTERVAL \'1 hour\' WHERE LOWER(email) = $2 RETURNING client_id, email',
@@ -105,12 +106,18 @@ router.post('/forgot-password', async (req, res) => {
     );
     if (r.rows.length > 0) {
       try {
-        await sendPasswordResetEmail(r.rows[0].email, token);
-        console.log('[forgot-password] reset email sent to', r.rows[0].email);
+        const provider = await sendPasswordResetEmail(r.rows[0].email, token);
+        if (!provider) {
+          console.warn('[forgot-password] email not sent (missing config). Check PASSWORD_RESET_BASE_URL and Mailgun/SMTP env.');
+        } else {
+          console.log('[forgot-password] reset email sent via', provider, 'to', r.rows[0].email);
+        }
       } catch (err) {
         console.error('[forgot-password] send email failed:', err.message, err.code || '', err.response ? String(err.response).slice(0, 200) : '');
         // still return success so we don't leak whether the email exists
       }
+    } else {
+      console.log('[forgot-password] no matching user for', email);
     }
     res.json({ message: 'If the email exists, a reset link was sent' });
   } catch (e) {

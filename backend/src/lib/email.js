@@ -78,37 +78,38 @@ async function sendEmail(to, subject, text, html, from) {
       text,
       html: html || text,
     });
-    return;
+    return 'mailgun';
   }
   const trans = getTransporter();
   if (trans) {
     await trans.sendMail({ from: fromAddr, to, subject, text, html: html || text });
-    return;
+    return 'smtp';
   }
+  return null;
 }
 
 /**
  * Send password reset email. No-op if email not configured or PASSWORD_RESET_BASE_URL not set.
  */
 async function sendPasswordResetEmail(toEmail, token) {
-  if (!BASE_URL.trim()) return;
+  if (!BASE_URL.trim()) return null;
   const resetUrl = `${BASE_URL.replace(/\/+$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
   const subject = 'Mmaraka – Reset your password';
   const text = `You requested a password reset. Open this link to set a new password (valid for 1 hour):\n\n${resetUrl}\n\nIf you didn't request this, ignore this email.`;
   const html = `<p>You requested a password reset. Click the link below to set a new password (valid for 1 hour):</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>If you didn't request this, ignore this email.</p>`;
-  await sendEmail(toEmail, subject, text, html);
+  return await sendEmail(toEmail, subject, text, html);
 }
 
 /**
  * Send email verification link (for new signups). No-op if email not configured or base URL not set.
  */
 async function sendVerificationEmail(toEmail, token) {
-  if (!BASE_URL.trim()) return;
+  if (!BASE_URL.trim()) return null;
   const verifyUrl = `${BASE_URL.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
   const subject = 'Mmaraka – Verify your email';
   const text = `Thanks for signing up. Verify your email by opening this link (valid for 24 hours):\n\n${verifyUrl}\n\nIf you didn't create an account, ignore this email.`;
   const html = `<p>Thanks for signing up. Verify your email by clicking the button below (valid for 24 hours):</p><p style="margin: 24px 0;"><a href="${verifyUrl}" style="display: inline-block; background: #2D6A4F; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600;">Verify my email</a></p><p>Or copy this link: <a href="${verifyUrl}">${verifyUrl}</a></p><p>If you didn't create an account, ignore this email.</p>`;
-  await sendEmail(toEmail, subject, text, html);
+  return await sendEmail(toEmail, subject, text, html);
 }
 
 /**
