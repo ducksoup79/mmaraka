@@ -4,7 +4,16 @@
  */
 import { useState, useEffect } from "react";
 
-const API_BASE = import.meta.env?.VITE_API_URL ?? "";
+// API base: from env at build time, or fallback so reset form posts to production API when opened from your domain
+const getApiBase = () => {
+  const env = import.meta.env?.VITE_API_URL;
+  if (env) return env;
+  if (typeof window === "undefined") return "";
+  const h = window.location?.hostname || "";
+  if (!h || h === "localhost" || h === "127.0.0.1") return "";
+  return "https://api.mmaraka.com";
+};
+const API_BASE = getApiBase();
 
 const styles = `
   .reset-page { min-height: 100vh; background: #F7F6F2; display: flex; align-items: center; justify-content: center; padding: 24px; font-family: 'DM Sans', system-ui, sans-serif; }
