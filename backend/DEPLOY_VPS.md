@@ -134,17 +134,34 @@ Replace `YOUR_ACCESS_TOKEN_HERE` with the token from step 1. The response will s
 
 Use this checklist:
 
-1. **Email not received**
+**How to check if the reset email was sent**
+
+1. **Server logs (PM2)**  
+   After someone requests a reset, run:
+   ```bash
+   grep forgot-password ~/.pm2/logs/mmaraka-api-out.log
+   grep forgot-password ~/.pm2/logs/mmaraka-api-error.log
+   ```
+   - **`[forgot-password] reset email sent to user@example.com`** → Backend sent the email. If the user didn’t receive it, check Mailgun (see below) or spam.
+   - **`[forgot-password] send email failed: ...`** → Sending failed; the rest of the line is the error (e.g. Mailgun 403, invalid domain).
+
+2. **Mailgun dashboard**  
+   Go to [Mailgun](https://app.mailgun.com/) → **Sending** → **Logs** (or **Events**). Filter by recipient or time. You’ll see whether the message was accepted, delivered, or failed.
+
+3. **Admin test**  
+   Call `GET /api/admin/test-email` with an admin token to confirm Mailgun (or SMTP) is configured. Use `POST /api/admin/send-test-email` with body `{"to":"that@email.com"}` to send a test to the same address and confirm delivery.
+
+4. **If email still not received**
    - Backend `.env`: `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `MAIL_FROM` set; `MAILGUN_EU=true` if your Mailgun region is EU.
    - Check server logs for `[forgot-password] send email failed:` (see “Where to find logs” above).
    - Call `GET /api/admin/test-email` with admin token to confirm Mailgun is OK.
    - Sandbox: add the recipient in Mailgun → Authorized recipients.
 
-2. **Link in email wrong or page not found**
+5. **Link in email wrong or page not found**
    - `PASSWORD_RESET_BASE_URL` must be the **web app** URL where `/reset-password` lives (e.g. `https://mmaraka.com`), not the API URL.
    - The link in the email will be `{PASSWORD_RESET_BASE_URL}/reset-password?token=...`. Open it in a browser and confirm it loads the reset form.
 
-3. **Reset form submits but fails**
+6. **Reset form submits but fails**
    - The reset page must post to `https://api.mmaraka.com/api/auth/reset-password`. If the frontend was built without `VITE_API_URL`, it may post to the wrong host; rebuild with `VITE_API_URL=https://api.mmaraka.com` or deploy the updated `ResetPasswordPage.jsx` (it falls back to api.mmaraka.com when not on localhost).
    - In the browser, open DevTools → Network, submit the form, and confirm the request goes to `api.mmaraka.com` and returns 200. If you see 400 “Invalid or expired token”, the token expired (1 hour) or the link was used already; request a new reset.
 

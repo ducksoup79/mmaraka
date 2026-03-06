@@ -106,6 +106,7 @@ router.post('/forgot-password', async (req, res) => {
     if (r.rows.length > 0) {
       try {
         await sendPasswordResetEmail(r.rows[0].email, token);
+        console.log('[forgot-password] reset email sent to', r.rows[0].email);
       } catch (err) {
         console.error('[forgot-password] send email failed:', err.message, err.code || '', err.response ? String(err.response).slice(0, 200) : '');
         // still return success so we don't leak whether the email exists
