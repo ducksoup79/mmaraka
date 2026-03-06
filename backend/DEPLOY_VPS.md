@@ -16,12 +16,27 @@ Steps to run the Mmaraka API on a VPS (e.g. DigitalOcean, Linode, AWS EC2) so th
   - `DB_*`, `JWT_SECRET`, `REFRESH_TOKEN_SECRET`
   - `ADMIN_PASSWORD` if you use the seeded admin user
 
-## 2. Email (Gmail SMTP) – no mail server on the VPS
+## 2. Email – Mailgun or SMTP
 
-The backend does **not** run an SMTP server. It connects **outbound** to Gmail to send mail.
+The backend can send mail via **Mailgun** (recommended; no outbound port 587) or **SMTP** (e.g. Gmail).
+
+### Option A: Mailgun (recommended)
+
+- No SMTP server or outbound port 587 needed; uses Mailgun’s HTTP API.
+- In `.env` set:
+  - `MAILGUN_API_KEY` – from [Mailgun dashboard](https://app.mailgun.com/) → Sending → API Keys.
+  - `MAILGUN_DOMAIN` – your sending domain (e.g. `sandboxxxxx.mailgun.org` for sandbox).
+  - `MAIL_FROM` – sender address for that domain (e.g. `Mmaraka <postmaster@sandboxxxxx.mailgun.org>`).
+  - `PASSWORD_RESET_BASE_URL` – base URL for reset/verify links (e.g. `https://mmaraka.com`).
+  - `MAILGUN_EU=true` only if your Mailgun account/domain is in the EU region.
+- Sandbox domains: you must add recipient addresses in Mailgun → Sending → Authorized recipients for testing.
+
+### Option B: SMTP (e.g. Gmail)
+
+The backend does **not** run an SMTP server. It connects **outbound** to Gmail (or another provider) to send mail.
 
 - You do **not** need Postfix, Sendmail, or any mail server on the VPS.
-- In `.env` set:
+- In `.env` set (Gmail example):
   - `SMTP_HOST=smtp.gmail.com`
   - `SMTP_PORT=587`
   - `SMTP_SECURE=false`
@@ -37,7 +52,8 @@ Restart the backend after changing `.env`. Use **GET /api/admin/test-email** (wi
 
 - **Inbound:** Open only what your app needs (e.g. 80, 443 for HTTP/HTTPS). Do **not** open port 587 inbound.
 - **Outbound:** The app initiates connections to `smtp.gmail.com:587`. Most VPS firewalls allow outbound traffic by default, so you usually do **not** need to allow port 587 explicitly.  
-  If your provider blocks outbound SMTP, add an **egress** rule allowing TCP 587 (and 465 if you use it) to the internet.
+  If your provider blocks outbound SMTP, add an **egress** rule allowing TCP 587 (and 465 if you use it) to the internet.  
+  **Note:** Some hosts (e.g. DigitalOcean) block outbound SMTP until the account is in good standing (e.g. first payment completed). If email never connects, check your provider’s policy and payment status.
 
 **Example (UFW on Ubuntu):**
 
