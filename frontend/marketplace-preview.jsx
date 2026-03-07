@@ -1215,6 +1215,7 @@ function ServicesPage({ setScreen, user, setEditServiceId, setReturnTo, setMessa
   const [error, setError] = useState(null);
   const [deleteConfirmService, setDeleteConfirmService] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [fullImageService, setFullImageService] = useState(null);
 
   useEffect(() => {
     api("/api/services")
@@ -1296,7 +1297,13 @@ function ServicesPage({ setScreen, user, setEditServiceId, setReturnTo, setMessa
       <div className="service-grid">
         {filtered.map(s=>(
           <div key={s.id} className="card service-card" data-service-id={s.id}>
-            <div className="service-logo" style={{overflow:"hidden"}}>
+            <div
+              className="service-logo"
+              style={{ overflow: "hidden", cursor: s.logo ? "pointer" : undefined }}
+              onClick={(e) => { e.stopPropagation(); if (s.logo) setFullImageService(s); }}
+              role={s.logo ? "button" : undefined}
+              aria-label={s.logo ? `View full image for ${s.name}` : undefined}
+            >
               {s.logo ? <img alt={s.name} src={s.logo} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : s.emoji}
             </div>
             <div className="service-info" style={{flex:1,minWidth:0}}>
@@ -1312,7 +1319,7 @@ function ServicesPage({ setScreen, user, setEditServiceId, setReturnTo, setMessa
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,flexWrap:"wrap",gap:8}}>
                 <span className="tag">{s.category}</span>
                 {user && s.client_id !== user.client_id && (
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={()=>{ setMessageWithClientId(s.client_id); setScreen("messages"); }}>Message</button>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ border: "1px solid var(--border)" }} onClick={()=>{ setMessageWithClientId(s.client_id); setScreen("messages"); }}>Message</button>
                 )}
                 {user && s.client_id === user.client_id && (
                   <span className="flex items-center gap-4">
@@ -1327,6 +1334,30 @@ function ServicesPage({ setScreen, user, setEditServiceId, setReturnTo, setMessa
           </div>
         ))}
       </div>
+      {fullImageService?.logo && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 24 }}
+          onClick={() => setFullImageService(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Service image"
+        >
+          <button
+            type="button"
+            style={{ position: "absolute", top: 16, right: 16, width: 40, height: 40, borderRadius: "50%", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 20, cursor: "pointer", zIndex: 1 }}
+            onClick={() => setFullImageService(null)}
+            aria-label="Close"
+          >
+            ×
+          </button>
+          <img
+            src={fullImageService.logo}
+            alt={fullImageService.name}
+            style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 8 }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
       <ConfirmModal
         open={!!deleteConfirmService}
         title="Delete service?"
