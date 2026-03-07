@@ -50,6 +50,21 @@ sudo ufw enable
 - Use a process manager (e.g. **PM2**): `pm2 start src/index.js --name mmaraka-api` (or your entry script).
 - Put Nginx/Caddy in front and proxy to the Node port (e.g. 3001).
 - Use HTTPS (e.g. Let’s Encrypt) so `PASSWORD_RESET_BASE_URL` and cookies work correctly.
+- Set **NODE_ENV=production** so the API sends security headers (CSP, HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy) and redirects HTTP→HTTPS.
+
+## Security headers
+
+When **NODE_ENV=production**, the API uses **helmet** to send:
+
+- **Content-Security-Policy** – strict (default-src 'none', frame-ancestors 'none')
+- **Strict-Transport-Security (HSTS)** – 1 year, includeSubDomains, preload
+- **X-Content-Type-Options** – nosniff
+- **X-Frame-Options** – DENY
+- **Referrer-Policy** – strict-origin-when-cross-origin
+
+It also **redirects HTTP to HTTPS** (301) when the request is not secure (e.g. when behind a proxy that sets `X-Forwarded-Proto`). Ensure **trust proxy** is correct (the app sets `trust proxy` to 1 in production).
+
+If you serve the **frontend** (e.g. mmaraka.com) with Nginx/Caddy, add similar headers there for the HTML app; the API headers above apply to api.mmaraka.com only.
 
 ## Where to find logs on the server
 

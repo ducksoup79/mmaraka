@@ -4,6 +4,7 @@
  */
 require('dotenv').config();
 const express = require('express');
+const helmet = require('helmet');
 const cors = require('cors');
 const { pool } = require('./db/pool');
 const path = require('path');
@@ -21,6 +22,39 @@ const pushTokenRoutes = require('./routes/push-token');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Trust first proxy (e.g. Nginx/Caddy) so req.secure and X-Forwarded-Proto work
+if (isProduction) app.set('trust proxy', 1);
+
+// Security headers (helmet sets X-Content-Type-Options, X-Frame-Options, etc.)
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        formAction: ["'none'"],
+        baseUri: ["'self'"],
+      },
+    },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    hsts: isProduction
+      ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+      : false,
+    xContentTypeOptions: true,
+    xFrameOptions: { action: 'deny' },
+  })
+);
+
+// Redirect HTTP to HTTPS in production when behind a proxy
+if (isProduction) {
+  app.use((req, res, next) => {
+    if (req.secure) return next();
+    const host = req.get('host') || req.hostname || 'localhost';
+    return res.redirect(301, `https://${host}${req.originalUrl}`);
+  });
+}
 
 app.use(cors());
 // Payment webhook needs raw body for signature verification; must be registered before express.json()
