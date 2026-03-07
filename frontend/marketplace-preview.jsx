@@ -167,15 +167,16 @@ const css = `
     display: flex; align-items: center; justify-content: center; gap: 16px;
     flex-shrink: 0; overflow: hidden; position: relative; padding: 12px 16px;
   }
-  .ad-banner-inner { display: flex; align-items: center; gap: 16px; animation: adSlide 0.5s ease; max-width: 100%; min-width: 0; }
+  .ad-banner-inner { display: flex; align-items: center; gap: 16px; animation: adSlide 0.5s ease; max-width: 100%; min-width: 0; cursor: pointer; }
   @keyframes adSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   .ad-logo {
     width: calc(var(--banner) - 24px); height: calc(var(--banner) - 24px);
-    min-width: 64px; min-height: 64px; max-width: 96px; max-height: 96px;
+    min-width: 64px; min-height: 64px; max-width: 200px; max-height: 96px;
     border-radius: 8px; background: var(--accent);
     display: flex; align-items: center; justify-content: center; color: #fff; font-size: 28px;
-    flex-shrink: 0;
+    flex-shrink: 0; overflow: hidden;
   }
+  .ad-logo img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
   .ad-text { color: #fff; font-size: 15px; line-height: 1.35; min-width: 0; }
   .ad-text strong { color: #FCD34D; font-size: 16px; }
   .ad-label {
@@ -503,7 +504,7 @@ const css = `
     .stat-num { font-size: 22px; }
     .form-grid-2 { grid-template-columns: 1fr; }
     .ad-banner { height: 96px; padding: 10px 12px; }
-    .ad-logo { width: 76px; height: 76px; min-width: 56px; min-height: 56px; max-width: 76px; max-height: 76px; font-size: 24px; }
+    .ad-logo { width: 76px; height: 76px; min-width: 56px; min-height: 56px; max-width: 140px; max-height: 76px; font-size: 24px; }
     .ad-text { font-size: 13px; }
     .ad-text strong { font-size: 14px; }
     .btn { min-height: 44px; padding: 10px 16px; }
@@ -775,7 +776,7 @@ function ConfirmModal({ open, title, message, confirmLabel = "Delete", danger = 
   );
 }
 
-function AdBanner({ ads }) {
+function AdBanner({ ads, onAdClick }) {
   const [idx, setIdx] = useState(0);
   const list = Array.isArray(ads) ? ads : [];
   useEffect(() => {
@@ -787,11 +788,14 @@ function AdBanner({ ads }) {
   const ad = list[idx];
   if (!ad) return null;
   const logoUrl = ad.logo ? `${API_BASE}${ad.logo}` : null;
+  const handleClick = () => {
+    if (ad.service_id != null && typeof onAdClick === "function") onAdClick(ad);
+  };
   return (
     <div className="ad-banner">
-      <div className="ad-banner-inner" key={idx}>
+      <div className="ad-banner-inner" key={idx} onClick={handleClick} role="button" tabIndex={0} onKeyDown={e=>{ if (e.key==="Enter"||e.key===" ") { e.preventDefault(); handleClick(); } }} aria-label={`View ${ad.name} service`}>
         <div className="ad-logo">
-          {logoUrl ? <img src={logoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:6}} /> : <span>🏢</span>}
+          {logoUrl ? <img src={logoUrl} alt="" /> : <span>🏢</span>}
         </div>
         <div className="ad-text">
           <strong>{ad.name}</strong>
@@ -1203,7 +1207,7 @@ function AddProductPage({ setScreen, editListingId, setEditListingId, returnTo =
   );
 }
 
-function ServicesPage({ setScreen, user, setEditServiceId, setReturnTo, setMessageWithClientId }) {
+function ServicesPage({ setScreen, user, setEditServiceId, setReturnTo, setMessageWithClientId, selectedServiceId, setSelectedServiceId }) {
   const { toast } = useNotifications();
   const [search, setSearch] = useState("");
   const [services, setServices] = useState([]);
@@ -1232,6 +1236,16 @@ function ServicesPage({ setScreen, user, setEditServiceId, setReturnTo, setMessa
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!selectedServiceId || services.length === 0) return;
+    const id = requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-service-id="${selectedServiceId}"]`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      setSelectedServiceId?.(null);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [selectedServiceId, services, setSelectedServiceId]);
 
   const filtered = services.filter(s => s.name.toLowerCase().includes(search.toLowerCase()) || s.desc.toLowerCase().includes(search.toLowerCase()));
 
@@ -1281,7 +1295,7 @@ function ServicesPage({ setScreen, user, setEditServiceId, setReturnTo, setMessa
 
       <div className="service-grid">
         {filtered.map(s=>(
-          <div key={s.id} className="card service-card">
+          <div key={s.id} className="card service-card" data-service-id={s.id}>
             <div className="service-logo" style={{overflow:"hidden"}}>
               {s.logo ? <img alt={s.name} src={s.logo} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : s.emoji}
             </div>
@@ -3449,6 +3463,7 @@ export default function App() {
   const [adverts, setAdverts] = useState([]);
   const [messageWithClientId, setMessageWithClientId] = useState(null);
   const [messagesUnreadCount, setMessagesUnreadCount] = useState(0);
+  const [selectedServiceId, setSelectedServiceId] = useState(null);
 
   useEffect(() => {
     const token = typeof window !== "undefined" && localStorage.getItem("marketplace_token");
@@ -3517,7 +3532,7 @@ export default function App() {
     switch(screen) {
       case "products":    return <ProductsPage user={user} setScreen={setScreen} setEditListingId={setEditListingId} setReturnTo={setReturnTo} setMessageWithClientId={setMessageWithClientId} />;
       case "add-product": return <AddProductPage setScreen={setScreen} editListingId={editListingId} setEditListingId={setEditListingId} returnTo={returnTo ?? "products"} />;
-      case "services":    return <ServicesPage user={user} setScreen={setScreen} setEditServiceId={setEditServiceId} setReturnTo={setReturnTo} setMessageWithClientId={setMessageWithClientId} />;
+      case "services":    return <ServicesPage user={user} setScreen={setScreen} setEditServiceId={setEditServiceId} setReturnTo={setReturnTo} setMessageWithClientId={setMessageWithClientId} selectedServiceId={selectedServiceId} setSelectedServiceId={setSelectedServiceId} />;
       case "add-service": return <AddServicePage setScreen={setScreen} editServiceId={editServiceId} setEditServiceId={setEditServiceId} returnTo={returnTo ?? "services"} />;
       case "my-listings": return <MyListingsPage user={user} setScreen={setScreen} setEditListingId={setEditListingId} setEditServiceId={setEditServiceId} setReturnTo={setReturnTo} setMessageWithClientId={setMessageWithClientId} />;
       case "messages":    return <MessagesPage user={user} setScreen={setScreen} openWithClientId={messageWithClientId} clearOpenWithClientId={()=>setMessageWithClientId(null)} onUnreadChange={setMessagesUnreadCount} />;
@@ -3575,7 +3590,7 @@ export default function App() {
           {/* Main */}
           <main className="main">
             {renderPage()}
-            <AdBanner ads={adverts} />
+            <AdBanner ads={adverts} onAdClick={(ad)=>{ if (ad.service_id != null) { setSelectedServiceId(ad.service_id); setScreen("services"); } }} />
           </main>
         </div>
       </div>
