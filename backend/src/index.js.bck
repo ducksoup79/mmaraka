@@ -48,7 +48,13 @@ app.use(
 );
 
 // Redirect HTTP to HTTPS in production when behind a proxy
-
+if (isProduction) {
+  app.use((req, res, next) => {
+    if (req.secure) return next();
+    const host = req.get('host') || req.hostname || 'localhost';
+    return res.redirect(301, `https://${host}${req.originalUrl}`);
+  });
+}
 
 app.use(cors());
 // Payment webhook needs raw body for signature verification; must be registered before express.json()
@@ -58,10 +64,7 @@ app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), (req
 app.use(express.json());
 
 // Static files: product/service images stored under backend/uploads
-app.use('/uploads', (req, res, next) => {
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  next();
-}, express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // API route mounting
 app.use('/api/auth', authRoutes);
