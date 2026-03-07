@@ -165,16 +165,19 @@ const css = `
   .ad-banner {
     height: var(--banner); background: linear-gradient(135deg, var(--text) 0%, #2D3748 100%);
     display: flex; align-items: center; justify-content: center; gap: 16px;
-    flex-shrink: 0; overflow: hidden; position: relative;
+    flex-shrink: 0; overflow: hidden; position: relative; padding: 12px 16px;
   }
-  .ad-banner-inner { display: flex; align-items: center; gap: 12px; animation: adSlide 0.5s ease; }
+  .ad-banner-inner { display: flex; align-items: center; gap: 16px; animation: adSlide 0.5s ease; max-width: 100%; min-width: 0; }
   @keyframes adSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   .ad-logo {
-    width: 32px; height: 32px; border-radius: 6px; background: var(--accent);
-    display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px;
+    width: calc(var(--banner) - 24px); height: calc(var(--banner) - 24px);
+    min-width: 64px; min-height: 64px; max-width: 96px; max-height: 96px;
+    border-radius: 8px; background: var(--accent);
+    display: flex; align-items: center; justify-content: center; color: #fff; font-size: 28px;
+    flex-shrink: 0;
   }
-  .ad-text { color: #fff; font-size: 13px; }
-  .ad-text strong { color: #FCD34D; }
+  .ad-text { color: #fff; font-size: 15px; line-height: 1.35; min-width: 0; }
+  .ad-text strong { color: #FCD34D; font-size: 16px; }
   .ad-label {
     position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
     font-size: 9px; color: rgba(255,255,255,.4); letter-spacing: .06em; text-transform: uppercase;
@@ -499,8 +502,10 @@ const css = `
     .stat-card { padding: 14px; }
     .stat-num { font-size: 22px; }
     .form-grid-2 { grid-template-columns: 1fr; }
-    .ad-banner { height: 96px; }
-    .ad-text { font-size: 11px; }
+    .ad-banner { height: 96px; padding: 10px 12px; }
+    .ad-logo { width: 76px; height: 76px; min-width: 56px; min-height: 56px; max-width: 76px; max-height: 76px; font-size: 24px; }
+    .ad-text { font-size: 13px; }
+    .ad-text strong { font-size: 14px; }
     .btn { min-height: 44px; padding: 10px 16px; }
     .btn-sm { min-height: 36px; padding: 8px 12px; }
     .nav-item { min-height: 44px; padding: 12px 14px; }
