@@ -13,17 +13,6 @@ const router = express.Router();
 const PAYPAL_SANDBOX = 'https://api-m.sandbox.paypal.com';
 const PAYPAL_LIVE = 'https://api-m.paypal.com';
 
-/** Base URL for PayPal return/cancel. In production, never use localhost so mobile users are redirected to the live API. */
-function getPaymentBaseUrl() {
-  const base = process.env.BASE_URL || process.env.PAYMENT_BASE_URL || '';
-  if (process.env.NODE_ENV === 'production') {
-    if (!base || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/i.test(base.trim())) {
-      return process.env.PAYMENT_BASE_URL || 'https://api.mmaraka.com';
-    }
-  }
-  return base.trim() || `http://localhost:${process.env.PORT || 3001}`;
-}
-
 // Events that mean the subscription has ended or payment failed → downgrade to Basic
 const SUBSCRIPTION_DEFAULT_EVENTS = new Set([
   'BILLING.SUBSCRIPTION.CANCELLED',
@@ -255,6 +244,12 @@ router.post('/create-order', verifyToken, async (req, res) => {
       config.paypal_sandbox
     );
 
+    const baseUrl =
+      process.env.BASE_URL ||
+      (req.body && req.body.return_base_url && /^https?:\/\//i.test(String(req.body.return_base_url).trim())
+        ? String(req.body.return_base_url).trim().replace(/\/$/, '')
+        : null) ||
+      `http://localhost:${process.env.PORT || 3001}`;
     const orderPayload = {
       intent: 'CAPTURE',
       purchase_units: [{
@@ -265,8 +260,8 @@ router.post('/create-order', verifyToken, async (req, res) => {
         description: `${plan.client_role} plan upgrade`,
       }],
       application_context: {
-        return_url: `${getPaymentBaseUrl().replace(/\/+$/, '')}/api/payment/return`,
-        cancel_url: `${getPaymentBaseUrl().replace(/\/+$/, '')}/api/payment/cancel`,
+        return_url: `${baseUrl}/api/payment/return`,
+        cancel_url: `${baseUrl}/api/payment/cancel`,
       },
     };
     const orderRes = await fetch(`${base}/v2/checkout/orders`, {

@@ -69,7 +69,10 @@ export default function SubscriptionScreen() {
     try {
       const data = await api('/api/payment/create-order', {
         method: 'POST',
-        body: JSON.stringify({ client_role_id: plan.client_role_id }),
+        body: JSON.stringify({
+          client_role_id: plan.client_role_id,
+          return_base_url: API_BASE.replace(/\/$/, ''),
+        }),
       });
       const approvalUrl = data.approvalUrl || data.approval_url;
       if (approvalUrl) {

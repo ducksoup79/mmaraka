@@ -1,8 +1,9 @@
 /**
  * Conversations list: GET /api/messages/conversations. Tap opens ChatScreen with otherId.
+ * Long-press to delete conversation (DELETE /api/messages/conversations/:withId).
  */
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api';
 import { colors } from '../theme';
@@ -29,6 +30,7 @@ export default function MessagesScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -57,6 +59,31 @@ export default function MessagesScreen({ navigation }) {
 
   const openChat = (conv) => {
     navigation.navigate('Chat', { otherId: conv.other_id, otherUsername: conv.other_username });
+  };
+
+  const deleteConversation = (item) => {
+    Alert.alert(
+      'Delete conversation',
+      `Remove this chat with @${item.other_username}? All messages will be permanently deleted.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingId(item.other_id);
+            try {
+              await api(`/api/messages/conversations/${item.other_id}`, { method: 'DELETE' });
+              setConversations((prev) => prev.filter((c) => c.other_id !== item.other_id));
+            } catch (e) {
+              Alert.alert('Error', e.message || 'Could not delete conversation');
+            } finally {
+              setDeletingId(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -94,7 +121,13 @@ export default function MessagesScreen({ navigation }) {
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.accent]} />}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.row} onPress={() => openChat(item)} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={[styles.row, deletingId === item.other_id && styles.rowDeleting]}
+              onPress={() => openChat(item)}
+              onLongPress={() => deleteConversation(item)}
+              activeOpacity={0.85}
+              disabled={deletingId !== null}
+            >
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>{(item.other_username || '?').charAt(0).toUpperCase()}</Text>
               </View>
@@ -133,6 +166,7 @@ const styles = StyleSheet.create({
   retryText: { color: colors.accent, fontWeight: '700' },
   listContent: { paddingBottom: 24 },
   row: { flexDirection: 'row', padding: 16, backgroundColor: colors.surface, marginHorizontal: 16, marginBottom: 8, borderRadius: 12 },
+  rowDeleting: { opacity: 0.6 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#fff', fontSize: 18, fontWeight: '700' },
   rowBody: { flex: 1, marginLeft: 12, justifyContent: 'center' },

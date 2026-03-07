@@ -15,7 +15,6 @@ Steps to run the Mmaraka API on a VPS (e.g. DigitalOcean, Linode, AWS EC2) so th
 - Copy `.env.example` to `.env` and set at least:
   - `DB_*`, `JWT_SECRET`, `REFRESH_TOKEN_SECRET`
   - `ADMIN_PASSWORD` if you use the seeded admin user
-  - `BASE_URL` to your production API URL (e.g. `https://api.mmaraka.com`) so PayPal payment return/cancel redirects work (otherwise mobile users may see localhost after paying).
 
 ## 2. Email – Mailgun
 
@@ -164,5 +163,7 @@ Use this checklist:
 
 | Item | Action |
 |------|--------|
+| **Payment return URL** | Set `BASE_URL=https://api.mmaraka.com` (no trailing slash) in backend `.env` so PayPal redirects to your API after payment, not localhost. The mobile app can also send `return_base_url` when creating an order; if `BASE_URL` is set, it takes precedence. |
+| **PayPal webhook** | In PayPal Developer Dashboard, set the webhook URL to `https://api.mmaraka.com/api/payment/webhook` so PayPal can notify your API of subscription/capture events. |
 | Email provider | Mailgun only (set MAILGUN_API_KEY, MAILGUN_DOMAIN, MAIL_FROM) |
 | Test email | `GET /api/admin/test-email` with admin JWT |

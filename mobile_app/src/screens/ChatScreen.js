@@ -1,8 +1,9 @@
 /**
  * Chat thread with one user: GET /api/messages?with=id, POST to send. otherId/otherUsername from route params.
+ * Header has Delete chat option (DELETE /api/messages/conversations/:withId).
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api';
@@ -43,6 +44,28 @@ export default function ChatScreen({ route, navigation }) {
     }
   }, [otherId, user?.client_id]);
 
+  const handleDeleteChat = useCallback(() => {
+    Alert.alert(
+      'Delete conversation',
+      `Remove this chat with @${otherUsername || 'this user'}? All messages will be permanently deleted.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api(`/api/messages/conversations/${otherId}`, { method: 'DELETE' });
+              navigation.goBack();
+            } catch (e) {
+              Alert.alert('Error', e.message || 'Could not delete conversation');
+            }
+          },
+        },
+      ]
+    );
+  }, [otherId, otherUsername, navigation]);
+
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
@@ -51,8 +74,19 @@ export default function ChatScreen({ route, navigation }) {
   );
 
   useEffect(() => {
-    navigation.setOptions({ title: otherUsername ? `@${otherUsername}` : 'Chat' });
-  }, [otherUsername, navigation]);
+    navigation.setOptions({
+      title: otherUsername ? `@${otherUsername}` : 'Chat',
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={handleDeleteChat}
+          style={styles.headerDeleteBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={styles.headerDeleteText}>Delete</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [otherUsername, navigation, handleDeleteChat]);
 
   const send = async () => {
     const text = (body || '').trim();
@@ -181,4 +215,6 @@ const styles = StyleSheet.create({
   sendBtn: { backgroundColor: colors.accent, paddingHorizontal: 18, paddingVertical: 12, borderRadius: 20, justifyContent: 'center' },
   sendBtnDisabled: { opacity: 0.5 },
   sendBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  headerDeleteBtn: { paddingHorizontal: 12, paddingVertical: 8 },
+  headerDeleteText: { color: colors.danger, fontSize: 16 },
 });
