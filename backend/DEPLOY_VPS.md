@@ -15,6 +15,7 @@ Steps to run the Mmaraka API on a VPS (e.g. DigitalOcean, Linode, AWS EC2) so th
 - Copy `.env.example` to `.env` and set at least:
   - `DB_*`, `JWT_SECRET`, `REFRESH_TOKEN_SECRET`
   - `ADMIN_PASSWORD` if you use the seeded admin user
+  - `BASE_URL` to your production API URL (e.g. `https://api.mmaraka.com`) so PayPal payment return/cancel redirects work (otherwise mobile users may see localhost after paying).
 
 ## 2. Email – Mailgun
 
